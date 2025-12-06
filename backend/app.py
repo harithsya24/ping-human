@@ -876,15 +876,21 @@ def get_actions():
         # Format actions for frontend
         actions = []
         for entry in history:
-            action = {
-                "id": entry.get("id", ""),
-                "timestamp": entry.get("timestamp", ""),
-                "action_type": entry.get("action_type", ""),
-                "status": get_action_status(entry),
-                "summary": get_action_summary(entry),
-                "details": entry.get("details", {})
-            }
-            actions.append(action)
+            if not entry:
+                continue
+            try:
+                action = {
+                    "id": entry.get("id", ""),
+                    "timestamp": entry.get("timestamp", ""),
+                    "action_type": entry.get("action_type", ""),
+                    "status": get_action_status(entry),
+                    "summary": get_action_summary(entry),
+                    "details": entry.get("details", {})
+                }
+                actions.append(action)
+            except Exception as e:
+                print(f"[API] Error formatting action entry: {e}")
+                continue
         
         return jsonify({
             "success": True,
@@ -892,6 +898,9 @@ def get_actions():
             "count": len(actions)
         })
     except Exception as e:
+        import traceback
+        print(f"[API] Error in /api/actions: {e}")
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "error": str(e),

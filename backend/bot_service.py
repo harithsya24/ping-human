@@ -157,9 +157,9 @@ def run_bot():
                 print(f"[Bot] SUCCESS: Loaded {synced_count} contacts from macOS Contacts app")
             else:
                 print("[Bot] INFO: No contacts synced from macOS (will use contacts from iMessage)")
-        except Exception as e:
-            print(f"[Bot] WARNING: Could not sync macOS contacts: {e}")
-            print("[Bot] INFO: Will use contacts from iMessage data instead")
+    except Exception as e:
+        print(f"[Bot] WARNING: Could not sync macOS contacts: {e}")
+        print("[Bot] INFO: Will use contacts from iMessage data instead")
     
     # Contacts are automatically loaded from JSON on module import
     from contact_manager import get_all_contacts

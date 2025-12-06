@@ -784,7 +784,7 @@
             
             <div class="panel">
                 <h2><i class="fas fa-bolt"></i> Recent Activity</h2>
-                <div id="activity-list">Loading...</div>
+                <div id="activity-list"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i> Loading...</div></div>
             </div>
         </div>
         
@@ -964,8 +964,17 @@
                     });
                 }
                 
-                const actionsRes = await fetch(`${API_URL}/actions?limit=10`);
-                const actionsData = await actionsRes.json();
+                let actionsData = { success: false, actions: [] };
+                try {
+                    const actionsRes = await fetch(`${API_URL}/actions?limit=10`);
+                    if (actionsRes.ok) {
+                        actionsData = await actionsRes.json();
+                    } else {
+                        console.error('Failed to fetch actions:', actionsRes.status, actionsRes.statusText);
+                    }
+                } catch (error) {
+                    console.error('Error fetching actions:', error);
+                }
                 
                 const activityList = document.getElementById('activity-list');
                 activityList.innerHTML = '';

@@ -46,6 +46,9 @@ def get_action_history(action_type=None, limit=None):
     with _history_lock:
         history = _load_history()
         
+        if not history:
+            return []
+        
         if action_type:
             history = [entry for entry in history if entry.get("action_type") == action_type]
         
