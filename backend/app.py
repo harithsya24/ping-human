@@ -387,14 +387,16 @@ def match_contact():
         if not request_text:
             return jsonify({"error": "request is required"}), 400
         
-        match = match_contact_to_request(request_text, ai_client=ai_client)
-        # Check permission first
+        # Check permission FIRST before any contact access
         if not check_contact_permission():
             return jsonify({
                 "success": False,
                 "needs_permission": True,
                 "message": "Contact access permission required. Please grant permission first."
             }), 403
+        
+        # Now safe to access contacts
+        match = match_contact_to_request(request_text, ai_client=ai_client)
         
         if match:
             return jsonify(match)
