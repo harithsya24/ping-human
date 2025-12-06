@@ -4,10 +4,9 @@ AI-powered messaging bot with sentiment analysis, intent detection, multilingual
 
 ## 👤 Author
 
-**Your Name**
-- 📧 Email: your.email@example.com
-- 💼 LinkedIn: [Your LinkedIn Profile](https://linkedin.com/in/yourprofile)
-- 💻 GitHub: [Your GitHub](https://github.com/yourusername)
+**Amrutha Kanakatte Ravishankar, Sneha Venkatesh**
+- 📧 Email: amruthakravishankar@outlook.com; venkateshsneha30@gmail.com
+- 💻 GitHub: [Your GitHub](https://github.com/harithsya24)
 
 ## Project Structure
 
