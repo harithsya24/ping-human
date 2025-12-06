@@ -4,7 +4,7 @@ AI-powered messaging bot with sentiment analysis, intent detection, multilingual
 
 ## 👤 Author
 
-**Your Name**
+**Amrutha Kanakatte Ravishankar, Sneha Venkatesh**
 - 📧 Email: amruthakravishankar@outlook.com; venkateshsneha30@gmail.com
 - 💻 GitHub: [Your GitHub](https://github.com/harithsya24)
 
