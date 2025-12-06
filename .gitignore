@@ -45,3 +45,10 @@ Thumbs.db
 # Analytics data
 analytics_data.json
 
+# Permissions data
+permissions.json
+
+# Gmail API credentials
+credentials.json
+token.json
+

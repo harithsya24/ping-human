@@ -5,19 +5,23 @@ import os
 from dotenv import load_dotenv
 
 # Import analytics and other modules
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analytics import get_analytics
 from ai_responder import conversation_history, user_languages
 from rate_limit_checker import get_rate_limit_status
 from series_api import get_user_connections
-from contact_manager import get_all_contacts, get_contact_by_phone, get_contact_name, search_contacts
+from contact_manager import get_all_contacts, get_contact_by_phone, get_contact_name, search_contacts, sync_from_macos_contacts
 from conversation_tracker import get_conversation_thread, get_conversation_summary, get_all_threads, get_pending_replies, has_replied
 from next_message_generator import generate_next_message, generate_follow_up_message, suggest_message_options
 from decision_support import analyze_conversation_state, get_decision_support, should_send_message, get_conversation_insights
 from guardrails import (
     get_guardrail_stats, check_user_status, flag_user, unblock_user,
     reset_user_flags, record_violation, violation_history, user_flags
+)
+from agent_orchestrator import process_user_request, get_action_suggestions
+from contact_matcher import match_contact_to_request, find_contacts_by_category, get_contact_suggestions
+from permission_manager import (
+    check_contact_permission, request_contact_permission, grant_contact_permission,
+    deny_contact_permission, get_permission_status, reset_permissions
 )
 from openai import OpenAI
 import os
@@ -93,22 +97,18 @@ def stats():
 
 @app.route('/api/users/<user_id>/connections', methods=['GET'])
 def user_connections(user_id):
-    """Get connections for a specific user from Series API with better formatting."""
+    """Get connections for a specific user. Returns cached contacts since Series API doesn't have this endpoint."""
     from datetime import datetime
     try:
-        result = get_user_connections(user_id)
-        
-        # If there's an error but we got a structured response, return it
-        if "error" in result and result.get("status") != "success":
-            status_code = 404 if "not found" in result.get("error", "").lower() else 500
-            return jsonify(result), status_code
-        
-        # Return successful response with better formatting
+        # Since Series API doesn't have /api/users/<id>/connections, return cached contacts instead
+        # Contacts are built automatically from incoming messages
+        contacts = get_all_contacts()
         return jsonify({
             "user_id": user_id,
-            "connections": result.get("connections", []),
-            "connection_count": result.get("count", 0),
+            "connections": contacts,
+            "connection_count": len(contacts),
             "status": "success",
+            "note": "Contacts built from incoming messages (Series API doesn't have contact endpoints)",
             "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
@@ -126,15 +126,58 @@ def user_connections(user_id):
 
 @app.route('/api/contacts', methods=['GET'])
 def contacts():
-    """Get all contacts."""
+    """Get all contacts with detailed information."""
+    # Check permission first
+    if not check_contact_permission():
+        return jsonify({
+            "error": "Contact access permission required",
+            "needs_permission": True,
+            "message": "Please grant contact access permission first"
+        }), 403
+    
+    contacts_list = get_all_contacts()
+    
+    # Format response with detailed info
+    formatted_contacts = []
+    for contact in contacts_list:
+        formatted_contact = {
+            "name": contact.get("name", "Unknown"),
+            "display_name": contact.get("display_name", "Unknown"),
+            "phone_number": contact.get("phone_number", ""),
+            "source": contact.get("source", "unknown"),
+            "message_count": contact.get("message_count", 0),
+            "first_seen": contact.get("first_seen"),
+            "last_interaction": contact.get("last_interaction"),
+            "last_updated": contact.get("last_updated"),
+            "preferred_language": contact.get("preferred_language"),
+            "last_message": contact.get("last_message", "")[:100] if contact.get("last_message") else None,
+            "metadata": contact.get("metadata", {}),
+            "has_message_context": len(contact.get("message_context", [])) > 0,
+            "message_context_count": len(contact.get("message_context", []))
+        }
+        formatted_contacts.append(formatted_contact)
+    
     return jsonify({
-        "contacts": get_all_contacts(),
-        "count": len(get_all_contacts())
+        "contacts": formatted_contacts,
+        "count": len(formatted_contacts),
+        "summary": {
+            "total_contacts": len(formatted_contacts),
+            "from_iphone": len([c for c in formatted_contacts if c.get("source") == "iphone_message"]),
+            "inferred": len([c for c in formatted_contacts if c.get("source") == "inferred"]),
+            "total_messages": sum(c.get("message_count", 0) for c in formatted_contacts)
+        }
     })
 
 @app.route('/api/contacts/<phone>', methods=['GET'])
 def get_contact(phone):
     """Get contact by phone number."""
+    # Check permission first
+    if not check_contact_permission():
+        return jsonify({
+            "error": "Contact access permission required",
+            "needs_permission": True
+        }), 403
+    
     contact = get_contact_by_phone(phone)
     if contact:
         return jsonify(contact)
@@ -143,6 +186,13 @@ def get_contact(phone):
 @app.route('/api/contacts/search', methods=['GET'])
 def search_contacts_endpoint():
     """Search contacts by query."""
+    # Check permission first
+    if not check_contact_permission():
+        return jsonify({
+            "error": "Contact access permission required",
+            "needs_permission": True
+        }), 403
+    
     query = request.args.get('q', '')
     if not query:
         return jsonify({"error": "Query parameter 'q' required"}), 400
@@ -305,6 +355,126 @@ def conversation_insights(chat_id):
         return jsonify(insights)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# =========================
+# Multi-Agent System Endpoints
+# =========================
+
+@app.route('/api/agents/process', methods=['POST'])
+def process_request():
+    """Process a user request using the multi-agent system."""
+    try:
+        data = request.json
+        request_text = data.get('request', '')
+        chat_id = data.get('chat_id', 'default')
+        
+        if not request_text:
+            return jsonify({"error": "request is required"}), 400
+        
+        user_phone = data.get('user_phone', 'unknown')
+        result = process_user_request(request_text, chat_id, user_phone, ai_client=ai_client)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/agents/match_contact', methods=['POST'])
+def match_contact():
+    """Match a request to a contact."""
+    try:
+        data = request.json
+        request_text = data.get('request', '')
+        
+        if not request_text:
+            return jsonify({"error": "request is required"}), 400
+        
+        match = match_contact_to_request(request_text, ai_client=ai_client)
+        # Check permission first
+        if not check_contact_permission():
+            return jsonify({
+                "success": False,
+                "needs_permission": True,
+                "message": "Contact access permission required. Please grant permission first."
+            }), 403
+        
+        if match:
+            return jsonify(match)
+        else:
+            return jsonify({
+                "success": False,
+                "message": "No matching contact found",
+                "suggestions": [
+                    {
+                        "name": c.get("name") or c.get("display_name", "Unknown"),
+                        "phone": c.get("phone_number", "")
+                    }
+                    for c in get_contact_suggestions(request_text, limit=3)
+                ]
+            })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/agents/suggestions', methods=['POST'])
+def get_suggestions():
+    """Get action suggestions for a request."""
+    try:
+        data = request.json
+        request_text = data.get('request', '')
+        
+        if not request_text:
+            return jsonify({"error": "request is required"}), 400
+        
+        suggestions = get_action_suggestions(request_text, ai_client=ai_client)
+        return jsonify({
+            "request": request_text,
+            "suggestions": suggestions,
+            "count": len(suggestions)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/contacts/category/<category>', methods=['GET'])
+def get_contacts_by_category(category):
+    """Get contacts by category."""
+    try:
+        # Check permission first
+        if not check_contact_permission():
+            return jsonify({
+                "error": "Contact access permission required",
+                "needs_permission": True
+            }), 403
+        
+        contacts = find_contacts_by_category(category, ai_client=ai_client)
+        return jsonify({
+            "category": category,
+            "contacts": contacts,
+            "count": len(contacts)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/contacts/sync', methods=['POST'])
+def sync_contacts():
+    """Sync contacts from macOS Contacts app."""
+    try:
+        # Check permission first
+        if not check_contact_permission():
+            return jsonify({
+                "error": "Contact access permission required",
+                "needs_permission": True
+            }), 403
+        
+        synced_count = sync_from_macos_contacts()
+        return jsonify({
+            "success": True,
+            "synced_count": synced_count,
+            "message": f"Synced {synced_count} contacts from macOS Contacts app"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "message": "Could not sync contacts from macOS Contacts app"
+        }), 500
 
 if __name__ == '__main__':
     port = int(os.getenv('API_PORT', 5001))  # Changed default to 5001 to avoid AirPlay conflict
