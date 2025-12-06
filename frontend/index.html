@@ -788,6 +788,13 @@
             </div>
         </div>
         
+        <div class="dashboard">
+            <div class="panel" style="grid-column: 1 / -1;">
+                <h2><i class="fas fa-history"></i> Action History</h2>
+                <div id="action-history-list">Loading...</div>
+            </div>
+        </div>
+        
         <div style="text-align: center;">
             <button class="refresh-btn" onclick="loadData()" aria-label="Refresh dashboard data">
                 <span id="refresh-icon"><i class="fas fa-sync-alt"></i></span>
@@ -957,27 +964,87 @@
                     });
                 }
                 
-                // Load conversations for activity
-                const convRes = await fetch(`${API_URL}/conversations`);
-                const conversations = await convRes.json();
+                const actionsRes = await fetch(`${API_URL}/actions?limit=10`);
+                const actionsData = await actionsRes.json();
                 
                 const activityList = document.getElementById('activity-list');
                 activityList.innerHTML = '';
-                const convArray = Object.entries(conversations).slice(0, 5);
-                if (convArray.length === 0) {
-                    activityList.innerHTML = '<div class="empty-state">No conversations yet</div>';
+                
+                if (!actionsData.success || !actionsData.actions || actionsData.actions.length === 0) {
+                    activityList.innerHTML = '<div class="empty-state">No recent activity yet</div>';
                 } else {
-                    convArray.forEach(([chatId, data]) => {
+                    const actions = actionsData.actions.reverse().slice(0, 10);
+                    
+                    actions.forEach((action) => {
+                        const timestamp = new Date(action.timestamp);
+                        const timeStr = timestamp.toLocaleString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        });
+                        
+                        const status = action.status || 'pending';
+                        const statusColor = status === 'success' ? 'var(--success)' : status === 'error' ? 'var(--danger)' : status === 'failed' ? 'var(--warning)' : 'var(--text-secondary)';
+                        const statusIcon = status === 'success' ? '✓' : status === 'error' ? '✗' : status === 'failed' ? '⚠' : '○';
+                        
+                        const actionIcons = {
+                            'message_sent': '📤',
+                            'message_received': '📥',
+                            'order_placed': '🛒',
+                            'order': '🛒',
+                            'booking_created': '📅',
+                            'book': '📅',
+                            'reminder_sent': '⏰',
+                            'ai_action': '🤖',
+                            'call': '📞',
+                            'message': '💬',
+                            'follow_up_sent': '🔄',
+                            'error': '❌',
+                            'agent_response': '🤖'
+                        };
+                        
+                        const icon = actionIcons[action.action_type] || '📋';
+                        
                         const item = document.createElement('div');
                         item.className = 'list-item';
+                        item.style.cursor = 'pointer';
+                        item.onclick = () => {
+                            const detailsRow = document.getElementById(`activity-details-${action.id}`);
+                            if (detailsRow) {
+                                detailsRow.style.display = detailsRow.style.display === 'none' ? 'block' : 'none';
+                            }
+                        };
+                        // Get summary text for display
+                        const summary = action.summary || action.action_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        
                         item.innerHTML = `
-                            <span style="font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-comment"></i> <strong>Chat ${chatId}</strong></span>
-                            <span style="display: flex; gap: 15px; align-items: center;">
-                                <span class="language-tag">${data.language.toUpperCase()}</span>
-                                <span style="color: var(--text-secondary); font-weight: 600;"><i class="fas fa-envelope"></i> ${data.message_count} Messages</span>
+                            <span style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                ${icon} <strong>${action.action_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</strong>
+                            </span>
+                            <span style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                                <span style="color: var(--text-secondary); font-size: 0.85em;">${timeStr}</span>
+                                <span style="color: ${statusColor}; font-weight: 600; font-size: 0.85em;">${statusIcon} ${status}</span>
                             </span>
                         `;
                         activityList.appendChild(item);
+                        
+                        const detailsDiv = document.createElement('div');
+                        detailsDiv.id = `activity-details-${action.id}`;
+                        detailsDiv.style.display = 'none';
+                        detailsDiv.style.padding = '10px';
+                        detailsDiv.style.marginTop = '5px';
+                        detailsDiv.style.background = 'rgba(99, 102, 241, 0.05)';
+                        detailsDiv.style.borderRadius = '8px';
+                        detailsDiv.style.fontSize = '0.85em';
+                        detailsDiv.innerHTML = `
+                            <div style="margin-bottom: 8px;"><strong>Summary:</strong> ${action.summary || 'N/A'}</div>
+                            <details style="margin-top: 8px;">
+                                <summary style="cursor: pointer; color: var(--primary); font-weight: 600;">View Full Details</summary>
+                                <pre style="background: white; padding: 10px; border-radius: 6px; overflow-x: auto; margin-top: 8px; font-size: 0.8em;">${JSON.stringify(action.details, null, 2)}</pre>
+                            </details>
+                        `;
+                        activityList.appendChild(detailsDiv);
                     });
                 }
                 

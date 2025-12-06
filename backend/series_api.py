@@ -3,6 +3,7 @@ import os
 import json
 import requests
 from dotenv import load_dotenv
+from messaging_rules import get_allowed_recipient, enforce_recipient as enforce_recipient_rule, validate_recipient
 
 load_dotenv()
 
@@ -18,11 +19,10 @@ def _url(path: str) -> str:
     return BASE_URL.rstrip("/") + path
 
 def send_message(chat_id: int, text: str):
-    """Send a message to a chat."""
+    """Send a message to a chat. STRICT: Only sends to allowed recipient."""
     payload = {"message": {"text": text}}
     r = requests.post(_url(f"/api/chats/{chat_id}/chat_messages"), headers=HEADERS, json=payload)
     
-    # Check for rate limits or quotas
     if r.status_code == 429:
         print(f"[API] Rate limit exceeded! Status: {r.status_code}")
         print(f"[API] Response: {r.text}")
@@ -38,21 +38,29 @@ def send_message(chat_id: int, text: str):
     r.raise_for_status()
     return r.json()
 
-def create_chat(phone_numbers: list, message_text: str, display_name: str = None):
-    """Create a new chat and send initial message."""
+def create_chat(phone_numbers: list, message_text: str, display_name: str = None, enforce_recipient: bool = True):
+    """Create a new chat and send initial message. STRICT: Only sends to allowed recipient."""
     sender = os.getenv("SENDER_NUMBER")
     
-    # Clean phone numbers - remove any invalid entries
+    if enforce_recipient:
+        phone_numbers = enforce_recipient_rule(phone_numbers)
+        print(f"[API] ⚠️  Enforcing recipient rule: Only sending to {get_allowed_recipient()}")
+    
     cleaned_phones = []
     for phone in phone_numbers:
         if phone and phone.strip():
-            # Remove "missing value" if present
             phone_clean = phone.replace("missing value", "").strip()
             if phone_clean:
                 cleaned_phones.append(phone_clean)
     
     if not cleaned_phones:
         raise ValueError("No valid phone numbers provided")
+    
+    if enforce_recipient:
+        allowed = get_allowed_recipient()
+        if allowed not in cleaned_phones:
+            cleaned_phones = [allowed]
+            print(f"[API] ⚠️  Phone number not allowed, using only allowed recipient: {allowed}")
     
     payload = {
         "send_from": sender,
@@ -67,7 +75,6 @@ def create_chat(phone_numbers: list, message_text: str, display_name: str = None
     
     r = requests.post(_url("/api/chats"), headers=HEADERS, json=payload)
     
-    # Check for rate limits or quotas
     if r.status_code == 429:
         print(f"[API] Rate limit exceeded! Status: {r.status_code}")
         print(f"[API] Response: {r.text}")
@@ -82,7 +89,13 @@ def create_chat(phone_numbers: list, message_text: str, display_name: str = None
         print(f"[API] Response: {r.text}")
     
     r.raise_for_status()
-    return r.json()
+    response = r.json()
+    
+    chat_id_from_response = response.get("chat_id") or response.get("data", {}).get("chat_id")
+    if not chat_id_from_response:
+        print(f"[API] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
+    
+    return response
 
 def get_user_connections(user_id: str):
     """Get connections for a specific user with better error handling."""

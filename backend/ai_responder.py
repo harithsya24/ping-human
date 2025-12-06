@@ -1,6 +1,7 @@
 """AI response generation with multilingual support."""
 from openai import OpenAI
 from language_detector import get_language_name
+from messaging_rules import get_non_hallucination_response, enforce_context_usage_only
 
 # Conversation history per chat
 conversation_history = {}
@@ -58,12 +59,18 @@ def generate_response(user_message: str, chat_id: str, sender: str, analysis: di
     topic_counts = Counter(topic_keywords)
     primary_topic = topic_counts.most_common(1)[0][0] if topic_counts else None
     
-    # Enhanced system prompt emphasizing LONG CONTEXT AWARENESS and TOPIC ADHERENCE
     system_prompt = f"""You are a helpful and friendly AI assistant. Be concise and conversational, suitable for text messaging. 
 IMPORTANT: Respond in {lang_name} ({user_lang}).
 
-CRITICAL - LONG CONTEXT AWARENESS & TOPIC ADHERENCE:
-You have access to the COMPLETE conversation history below. This is your PRIMARY source of context.
+KNOWLEDGE & INFORMATION:
+- You have access to general knowledge and can answer questions using your training data
+- Use conversation history as context when relevant, but you can also use your general knowledge
+- For questions requiring current information (like "find a hospital nearby", "search online"), provide helpful responses based on your knowledge
+- Only say "I cannot find that information" if you genuinely don't know the answer from any source
+- Be realistic and helpful - if someone asks for a hospital nearby, provide general guidance even if you don't have their exact location
+
+CONTEXT AWARENESS & TOPIC ADHERENCE:
+You have access to the COMPLETE conversation history below. Use it to understand context and maintain conversation flow.
 
 CONTEXT USAGE RULES:
 1. Read and understand the ENTIRE conversation history from start to finish - EVERY message matters
@@ -80,13 +87,15 @@ CONTEXT USAGE RULES:
 9. If asked about something mentioned earlier, quote or reference the exact context from the history
 10. Show you remember the conversation by naturally referencing past topics
 11. STAY ON TOPIC - if the conversation is about hospitals, keep it about hospitals. Don't switch to tourism, restaurants, etc. unless explicitly asked
+12. For general knowledge questions (like "find a hospital nearby", "suggest restaurants"), use your knowledge to provide helpful, realistic answers
 
 TOPIC ADHERENCE EXAMPLES:
-- User: "I need a hospital in NYC" → Topic: HOSPITALS, Location: NYC → Respond about HOSPITALS in NYC
+- User: "I need a hospital in NYC" → Topic: HOSPITALS, Location: NYC → Respond about HOSPITALS in NYC using your knowledge
+- User: "I fell from stairs, suggest me a hospital nearby" → Provide helpful guidance about finding hospitals, ask for location if needed
 - User: "NYC restaurants" → Topic: RESTAURANTS, Location: NYC → Respond about RESTAURANTS in NYC
 - User: "NYC" (after asking about hospitals) → Topic: STILL HOSPITALS, Location: NYC → Continue about HOSPITALS
 
-The conversation history below contains the COMPLETE context. Use it ALL. Identify the topic and stick to it."""
+The conversation history below provides context. Use it to maintain conversation flow, but feel free to use your general knowledge to answer questions realistically and helpfully."""
     
     # Add topic awareness if topic detected
     if primary_topic:
@@ -134,13 +143,12 @@ The conversation history below contains the COMPLETE context. Use it ALL. Identi
         )
     # For conversations < 100 messages, use ALL history (full context as examples)
     
-    # Add conversation history as few-shot examples to show context patterns
-    # This helps the AI understand how to maintain conversation flow and context
+    # Add conversation history as context to maintain conversation flow
     if len(history_to_use) > 0:
-        # Add a note about using history as examples
+        # Add a note about using history for context
         messages.append({
             "role": "system",
-            "content": "The following conversation history serves as few-shot examples showing how to maintain context, reference past topics, and continue the conversation naturally. Use these patterns to respond to the current message."
+            "content": "The following conversation history provides context for this conversation. Use it to understand the conversation flow and maintain continuity. You can also use your general knowledge to answer questions realistically and helpfully."
         })
         
         # Add conversation history as examples

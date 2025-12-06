@@ -1,10 +1,13 @@
 """Execute actions based on user requests and matched contacts."""
+import json
 from typing import Dict, Optional, List
 from openai import OpenAI
 from series_api import send_message, create_chat
 from contact_manager import get_contact_name
 from conversation_tracker import get_conversation_thread
 from email_client import send_email_to_contact
+from action_history import log_action
+from messaging_rules import get_allowed_recipient, validate_recipient
 
 def execute_action(
     action_type: str,
@@ -13,7 +16,21 @@ def execute_action(
     chat_id: str,
     ai_client: Optional[OpenAI] = None
 ) -> Dict:
-    """Execute an action using a matched contact."""
+    """Execute an action using a matched contact.
+    Only supports: order, call, message (send) actions."""
+    
+    # Only allow specific action types
+    ALLOWED_ACTIONS = ["order", "call", "message"]
+    
+    if action_type not in ALLOWED_ACTIONS:
+        return {
+            "action": action_type,
+            "success": False,
+            "message": f"Action '{action_type}' is not supported. Only 'order', 'call', and 'send' (message) are allowed.",
+            "error": "Unsupported action type",
+            "allowed_actions": ALLOWED_ACTIONS
+        }
+    
     contact_name = contact.get("name") or contact.get("display_name", "Unknown")
     # Try multiple possible phone number fields
     contact_phone = (
@@ -44,14 +61,8 @@ def execute_action(
             result = _execute_call(request, contact, chat_id, ai_client)
         elif action_type == "message":
             result = _execute_message(request, contact, chat_id, ai_client)
-        elif action_type == "email":
-            result = _execute_email(request, contact, chat_id, ai_client)
-        elif action_type == "book":
-            result = _execute_book(request, contact, chat_id, ai_client)
-        elif action_type == "schedule":
-            result = _execute_schedule(request, contact, chat_id, ai_client)
         else:
-            # Default: send a message
+            # Should not reach here due to check above, but fallback to message
             result = _execute_message(request, contact, chat_id, ai_client)
         
         result["contact"] = contact_name
@@ -65,70 +76,67 @@ def execute_action(
     return result
 
 def _execute_order(request: str, contact: Dict, chat_id: str, ai_client: Optional[OpenAI]) -> Dict:
-    """Execute an order action (e.g., order pizza)."""
+    """Execute an order action (e.g., order pizza). Uses contact from cache."""
+    # Get contact from cache to ensure we have latest info
+    from contact_manager import get_contact_by_phone, get_all_contacts
+    
     contact_name = contact.get("name") or contact.get("display_name", "Unknown")
-    # Try multiple possible phone number fields
     contact_phone = (
         contact.get("phone_number") or 
         contact.get("phone") or 
         contact.get("identifier", "")
     )
     
+    # Try to get contact from cache by name (e.g., "Pizza Guy")
+    cached_contacts = get_all_contacts()
+    cached_contact = None
+    for c in cached_contacts:
+        if (c.get("name") == contact_name or 
+            c.get("display_name") == contact_name or
+            c.get("phone_number") == contact_phone):
+            cached_contact = c
+            break
+    
+    # Use cached contact if found, otherwise use provided contact
+    if cached_contact:
+        contact = cached_contact
+        contact_name = contact.get("name") or contact.get("display_name", "Unknown")
+        contact_phone = contact.get("phone_number") or contact_phone
+        print(f"[ActionExecutor] ✅ Using contact from cache: {contact_name}")
+    
     print(f"[ActionExecutor] _execute_order called")
     print(f"[ActionExecutor] Contact name: {contact_name}")
     print(f"[ActionExecutor] Contact phone: {contact_phone}")
     print(f"[ActionExecutor] Full contact: {contact}")
     
-    # Generate order message using conversation history as few-shot examples
-    if ai_client:
-        try:
-            thread = get_conversation_thread(chat_id, limit=20)
-            
-            # Build few-shot examples from conversation history
-            examples = []
-            for msg in thread[-10:]:  # Last 10 messages as examples
-                role = "assistant" if msg.get("is_bot") else "user"
-                text = msg.get("text", "")
-                if text:
-                    examples.append(f"{'Bot' if role == 'assistant' else 'User'}: {text}")
-            
-            context_examples = "\n".join(examples) if examples else "No previous conversation"
-            
-            order_message = ai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"""Generate a professional order message for {contact_name}. 
-Use the conversation history below as few-shot examples to understand:
-- The user's communication style and preferences
-- Previous context and details mentioned
-- How to structure the order message naturally
-
-Generate a message that:
-1. Is professional but matches the conversation tone
-2. Includes ALL details from the user's request
-3. References relevant context from the conversation if needed
-4. Is clear and complete"""
-                    },
-                    {
-                        "role": "system",
-                        "content": f"Conversation history (few-shot examples):\n{context_examples}"
-                    },
-                    {
-                        "role": "user",
-                        "content": f"User's order request: {request}\n\nGenerate the order message to send to {contact_name}:"
-                    }
-                ],
-                temperature=0.7,
-                max_tokens=300
-            )
-            message_text = order_message.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"[ActionExecutor] Error generating order message: {e}")
-            message_text = f"Hello, I would like to place an order. {request}"
-    else:
-        message_text = f"Hello, I would like to place an order. {request}"
+    # Extract order details and address from request - NO AI, NO FILLER
+    # Request format: "Order: [details]. Delivery Address: [address]"
+    order_parts = request.split("Delivery Address:")
+    order_details = order_parts[0].replace("Order:", "").strip() if len(order_parts) > 0 else request
+    delivery_address = order_parts[1].strip() if len(order_parts) > 1 else None
+    
+    # Validate all required fields are present before sending
+    if not order_details or order_details == "":
+        return {
+            "action": "order",
+            "success": False,
+            "message": "Order details are missing. Cannot send order.",
+            "error": "Missing order details"
+        }
+    
+    if not delivery_address or delivery_address == "":
+        return {
+            "action": "order",
+            "success": False,
+            "message": "Delivery address is missing. Cannot send order.",
+            "error": "Missing delivery address"
+        }
+    
+    # Build message directly from provided information - NO FILLER TEXT
+    message_text = f"Hi, I'd like to place an order.\n\n"
+    message_text += f"Order Details: {order_details}\n\n"
+    message_text += f"Delivery Address: {delivery_address}\n\n"
+    message_text += "Please confirm if this works. Thank you!"
     
     # Create chat and send message
     # Validate phone number
@@ -196,24 +204,77 @@ Generate a message that:
     print(f"[ActionExecutor] ========================================")
     
     try:
+        # Send to actual contact phone number, not just allowed recipient
+        recipient_phone = phone_clean  # Use the cleaned contact phone number
+        
+        print(f"[ActionExecutor] 📤 Sending order to contact: {contact_name} at {recipient_phone}")
+        
         response = create_chat(
-            phone_numbers=[phone_clean],
+            phone_numbers=[recipient_phone],
             message_text=message_text,
-            display_name=contact_name
+            display_name=contact_name,
+            enforce_recipient=False  # Don't enforce - use actual contact number
         )
         
         print(f"[ActionExecutor] ✅ API Response received")
         print(f"[ActionExecutor] ✅ Response data: {json.dumps(response, indent=2)}")
         
         new_chat_id = response.get("chat_id") or response.get("data", {}).get("chat_id")
+        if not new_chat_id:
+            print(f"[ActionExecutor] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
+        
         print(f"[ActionExecutor] ✅ Order sent successfully! Chat ID: {new_chat_id}")
+        
+        # Log action for dashboard
+        log_action("order", {
+            "chat_id": str(new_chat_id) if new_chat_id else str(chat_id),
+            "contact": contact_name,
+            "contact_phone": phone_clean,
+            "order_details": order_details,
+            "delivery_address": delivery_address,
+            "message_sent": message_text,
+            "success": True
+        })
+        
+        # Track order event in contact metadata
+        try:
+            from contact_manager import update_contact_info
+            from datetime import datetime
+            
+            # Get event_id from response if available
+            event_id = response.get("event_id") or response.get("data", {}).get("event_id", "")
+            
+            # Update contact with order history
+            current_metadata = contact.get("metadata", {})
+            if "recent_orders" not in current_metadata:
+                current_metadata["recent_orders"] = []
+            
+            # Add new order to history (keep last 10 orders)
+            order_entry = {
+                "event_id": event_id,
+                "order_message": message_text[:200],  # Store first 200 chars
+                "timestamp": datetime.now().isoformat(),
+                "chat_id": str(new_chat_id) if new_chat_id else ""
+            }
+            current_metadata["recent_orders"].insert(0, order_entry)
+            current_metadata["recent_orders"] = current_metadata["recent_orders"][:10]  # Keep last 10
+            
+            # Update contact
+            update_contact_info(contact_phone, {
+                "metadata": current_metadata,
+                "last_order": datetime.now().isoformat()
+            })
+            print(f"[ActionExecutor] 📝 Order event tracked in contact metadata")
+        except Exception as e:
+            print(f"[ActionExecutor] ⚠️  Error tracking order in metadata: {e}")
         
         return {
             "action": "order",
             "success": True,
             "message": f"Order message sent to {contact_name}",
             "chat_id": new_chat_id or response.get("chat_id"),
-            "sent_message": message_text
+            "sent_message": message_text,
+            "event_id": event_id
         }
     except Exception as e:
         import traceback
@@ -231,6 +292,15 @@ def _execute_call(request: str, contact: Dict, chat_id: str, ai_client: Optional
     """Execute a call action (inform user to call)."""
     contact_name = contact.get("name") or contact.get("display_name", "Unknown")
     contact_phone = contact.get("phone_number", "")
+    
+    # Log action for dashboard
+    log_action("call", {
+        "chat_id": str(chat_id),
+        "contact": contact_name,
+        "contact_phone": contact_phone,
+        "request": request,
+        "success": True
+    })
     
     return {
         "action": "call",
@@ -404,19 +474,60 @@ Use the conversation history below as few-shot examples to understand:
     else:
         message_text = f"Hello, {request}"
     
-    # Create chat and send
     try:
+        # Send to actual contact phone number
+        recipient_phone = contact_phone
+        if not recipient_phone.startswith("+"):
+            if recipient_phone.startswith("1") and len(recipient_phone) == 11:
+                recipient_phone = f"+{recipient_phone}"
+            elif len(recipient_phone) == 10:
+                recipient_phone = f"+1{recipient_phone}"
+        
+        print(f"[ActionExecutor] 📤 Sending message to contact: {contact_name} at {recipient_phone}")
+        
         response = create_chat(
-            phone_numbers=[contact_phone],
+            phone_numbers=[recipient_phone],
             message_text=message_text,
-            display_name=contact_name
+            display_name=contact_name,
+            enforce_recipient=False  # Don't enforce - use actual contact number
         )
+        
+        chat_id_from_response = response.get("chat_id") or response.get("data", {}).get("chat_id")
+        if not chat_id_from_response:
+            print(f"[ActionExecutor] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
+        
+        # Track this message for follow-up scheduling
+        # Use the new chat_id where message was sent, or fallback to original chat_id
+        follow_up_chat_id = str(chat_id_from_response) if chat_id_from_response else chat_id
+        
+        # Log action for dashboard
+        log_action("message", {
+            "chat_id": str(follow_up_chat_id),
+            "contact": contact_name,
+            "contact_phone": recipient_phone,
+            "message_sent": message_text,
+            "success": True
+        })
+        
+        try:
+            from follow_up_scheduler import track_sent_message
+            track_sent_message(
+                chat_id=follow_up_chat_id,
+                recipient_phone=contact_phone,
+                recipient_name=contact_name,
+                message_text=message_text,
+                original_chat_id=str(chat_id)
+            )
+            print(f"[ActionExecutor] 📝 Message tracked for follow-up scheduling")
+        except Exception as e:
+            print(f"[ActionExecutor] ⚠️  Error tracking message for follow-up: {e}")
+            # Don't fail the action if tracking fails
         
         return {
             "action": "message",
             "success": True,
             "message": f"Message sent to {contact_name}",
-            "chat_id": response.get("chat_id"),
+            "chat_id": chat_id_from_response or response.get("chat_id"),
             "sent_message": message_text
         }
     except Exception as e:
@@ -475,17 +586,32 @@ Use the conversation history below as few-shot examples to understand context an
         message_text = f"Hello, I would like to make a booking. {request}"
     
     try:
+        # Send to actual contact phone number
+        recipient_phone = contact_phone
+        if not recipient_phone.startswith("+"):
+            if recipient_phone.startswith("1") and len(recipient_phone) == 11:
+                recipient_phone = f"+{recipient_phone}"
+            elif len(recipient_phone) == 10:
+                recipient_phone = f"+1{recipient_phone}"
+        
+        print(f"[ActionExecutor] 📤 Sending booking to contact: {contact_name} at {recipient_phone}")
+        
         response = create_chat(
-            phone_numbers=[contact_phone],
+            phone_numbers=[recipient_phone],
             message_text=message_text,
-            display_name=contact_name
+            display_name=contact_name,
+            enforce_recipient=False  # Don't enforce - use actual contact number
         )
+        
+        chat_id_from_response = response.get("chat_id") or response.get("data", {}).get("chat_id")
+        if not chat_id_from_response:
+            print(f"[ActionExecutor] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
         
         return {
             "action": "book",
             "success": True,
             "message": f"Booking request sent to {contact_name}",
-            "chat_id": response.get("chat_id"),
+            "chat_id": chat_id_from_response or response.get("chat_id"),
             "sent_message": message_text
         }
     except Exception as e:
@@ -544,17 +670,32 @@ Use the conversation history below as few-shot examples to understand context an
         message_text = f"Hello, I would like to schedule an appointment. {request}"
     
     try:
+        # Send to actual contact phone number
+        recipient_phone = contact_phone
+        if not recipient_phone.startswith("+"):
+            if recipient_phone.startswith("1") and len(recipient_phone) == 11:
+                recipient_phone = f"+{recipient_phone}"
+            elif len(recipient_phone) == 10:
+                recipient_phone = f"+1{recipient_phone}"
+        
+        print(f"[ActionExecutor] 📤 Sending schedule request to contact: {contact_name} at {recipient_phone}")
+        
         response = create_chat(
-            phone_numbers=[contact_phone],
+            phone_numbers=[recipient_phone],
             message_text=message_text,
-            display_name=contact_name
+            display_name=contact_name,
+            enforce_recipient=False  # Don't enforce - use actual contact number
         )
+        
+        chat_id_from_response = response.get("chat_id") or response.get("data", {}).get("chat_id")
+        if not chat_id_from_response:
+            print(f"[ActionExecutor] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
         
         return {
             "action": "schedule",
             "success": True,
             "message": f"Scheduling request sent to {contact_name}",
-            "chat_id": response.get("chat_id"),
+            "chat_id": chat_id_from_response or response.get("chat_id"),
             "sent_message": message_text
         }
     except Exception as e:

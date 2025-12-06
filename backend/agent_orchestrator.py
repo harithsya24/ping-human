@@ -15,30 +15,32 @@ def process_user_request(
     """Process a user request and execute appropriate action using contacts."""
     
     # Step 0: Check if contact permission is granted
-    if not check_contact_permission():
-        # Request permission first
-        permission_request = request_contact_permission(chat_id, user_phone or "unknown")
-        return {
-            "success": False,
-            "needs_permission": True,
-            "permission_type": "contacts",
-            "message": permission_request.get("message", "Permission required to access contacts"),
-            "requested": permission_request.get("requested", False)
-        }
+    # COMMENTED OUT: Contact permission check - allow actions regardless of permission status
+    # if not check_contact_permission():
+    #     # Request permission first
+    #     permission_request = request_contact_permission(chat_id, user_phone or "unknown")
+    #     return {
+    #         "success": False,
+    #         "needs_permission": True,
+    #         "permission_type": "contacts",
+    #         "message": permission_request.get("message", "Permission required to access contacts"),
+    #         "requested": permission_request.get("requested", False)
+    #     }
     
     # Step 1: Analyze the request to determine intent and action type
-    # Check if request contains order-related items (food, drinks, etc.)
-    request_lower = request.lower()
-    food_keywords = ["pizza", "margarita", "artichoke", "burger", "food", "drink", "coffee", "restaurant", "delivery"]
-    has_food_item = any(keyword in request_lower for keyword in food_keywords)
-    
-    # If request has food items but no explicit "order", infer it's an order request
-    if has_food_item and "order" not in request_lower:
-        request = f"order {request}"  # Prepend "order" for better matching
-    
+    # Only process if it matches Order, Call, or Send keywords
     intent_analysis = _analyze_request_intent(request, ai_client)
-    action_type = intent_analysis.get("action_type", "message")
+    action_type = intent_analysis.get("action_type")
     intent = intent_analysis.get("intent", "general")
+    
+    # If no matching action type (not Order, Call, or Send), return early
+    if not action_type:
+        return {
+            "success": False,
+            "action": None,
+            "message": "I can only help with orders, calls, and sending messages. Please use keywords like 'order', 'call', or 'send'.",
+            "allowed_actions": ["order", "call", "send"]
+        }
     
     # Step 2: Match request to contact (exclude user's own phone)
     contact_match = match_contact_to_request(request, ai_client, exclude_phone=user_phone)
@@ -93,7 +95,19 @@ def process_user_request(
     contact = contact_match["contact"]
     confidence = contact_match.get("confidence", 0.5)
     
-    # Step 3: Confirm if confidence is low
+    # Step 3: For orders, always ask for confirmation first (to collect details)
+    if action_type == "order":
+        contact_name = contact.get("name") or contact.get("display_name", "Unknown")
+        return {
+            "success": False,
+            "action": action_type,
+            "message": f"I found '{contact_name}' in your contacts. Should I proceed with {action_type}?",
+            "contact": contact,  # Return full contact object
+            "confidence": confidence,
+            "needs_confirmation": True
+        }
+    
+    # Step 3b: Confirm if confidence is low (for other actions)
     if confidence < 0.5:
         contact_name = contact.get("name") or contact.get("display_name", "Unknown")
         return {
@@ -105,7 +119,7 @@ def process_user_request(
             "needs_confirmation": True
         }
     
-    # Step 4: Execute the action
+    # Step 4: Execute the action (for call and message actions with high confidence)
     result = execute_action(action_type, request, contact, chat_id, ai_client)
     
     # Add context to result
@@ -116,64 +130,30 @@ def process_user_request(
     return result
 
 def _analyze_request_intent(request: str, ai_client: Optional[OpenAI]) -> Dict:
-    """Analyze user request to determine action type and intent."""
+    """Analyze user request to determine action type and intent.
+    Only supports: order, call, send (message) actions with specific keywords."""
     
-    if not ai_client:
-        # Fallback: simple keyword matching
-        request_lower = request.lower()
-        if any(word in request_lower for word in ["order", "buy", "purchase", "get"]):
-            return {"action_type": "order", "intent": "purchase"}
-        elif any(word in request_lower for word in ["email", "send email", "mail"]):
-            return {"action_type": "email", "intent": "email"}
-        elif any(word in request_lower for word in ["call", "phone"]):
-            return {"action_type": "call", "intent": "communication"}
-        elif any(word in request_lower for word in ["book", "reserve", "reservation"]):
-            return {"action_type": "book", "intent": "booking"}
-        elif any(word in request_lower for word in ["schedule", "appointment", "meeting"]):
-            return {"action_type": "schedule", "intent": "scheduling"}
-        else:
-            return {"action_type": "message", "intent": "general"}
+    request_lower = request.lower()
     
-    try:
-        response = ai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": """Analyze the user's request and determine:
-1. Action type: order, email, call, message, book, schedule
-2. Intent: what the user wants to accomplish
-
-Return JSON format:
-{
-  "action_type": "order|email|call|message|book|schedule",
-  "intent": "brief description"
-}"""},
-                {"role": "user", "content": f"User request: {request}"}
-            ],
-            temperature=0.3,
-            max_tokens=100,
-            response_format={"type": "json_object"}
-        )
-        
-        import json
-        result = json.loads(response.choices[0].message.content)
-        return result
-        
-    except Exception as e:
-        print(f"[AgentOrchestrator] Intent analysis error: {e}")
-        # Fallback
-        request_lower = request.lower()
-        if "order" in request_lower or "buy" in request_lower:
-            return {"action_type": "order", "intent": "purchase"}
-        elif "email" in request_lower or "mail" in request_lower:
-            return {"action_type": "email", "intent": "email"}
-        elif "call" in request_lower:
-            return {"action_type": "call", "intent": "communication"}
-        elif "book" in request_lower:
-            return {"action_type": "book", "intent": "booking"}
-        elif "schedule" in request_lower:
-            return {"action_type": "schedule", "intent": "scheduling"}
-        else:
-            return {"action_type": "message", "intent": "general"}
+    # Define allowed keywords for each action type
+    ORDER_KEYWORDS = ["order", "buy", "purchase", "get me"]
+    CALL_KEYWORDS = ["call", "phone", "ring", "dial"]
+    SEND_KEYWORDS = ["send", "message", "text", "text message", "send message"]
+    
+    # Check for Order keywords
+    if any(keyword in request_lower for keyword in ORDER_KEYWORDS):
+        return {"action_type": "order", "intent": "purchase"}
+    
+    # Check for Call keywords
+    if any(keyword in request_lower for keyword in CALL_KEYWORDS):
+        return {"action_type": "call", "intent": "communication"}
+    
+    # Check for Send/Message keywords
+    if any(keyword in request_lower for keyword in SEND_KEYWORDS):
+        return {"action_type": "message", "intent": "send_message"}
+    
+    # If no matching keywords, return None to indicate this is not a contact action
+    return {"action_type": None, "intent": "general"}
 
 def _extract_search_term(request: str, ai_client: Optional[OpenAI] = None) -> str:
     """Extract the main search term from a request (e.g., 'pizza' from 'order pizza')."""
@@ -208,7 +188,12 @@ Return ONLY the search term, nothing else."""},
     except Exception as e:
         print(f"[AgentOrchestrator] Search term extraction error: {e}")
         # Fallback: simple extraction
-        action_words = ["order", "buy", "get", "call", "book", "schedule", "find", "contact", "message", "text", "my", "a", "the"]
+        action_words = ["order", "buy", "get", "call", "book", "schedule", "find", "contact", "message", "text"]
+    
+    query_words = ["see", "show", "view", "check", "what", "when", "where", "how", "why", "tell", "list", "display", "alert", "alerts", "reminder", "reminders", "meeting", "meetings", "email", "emails"]
+    
+    if any(word in request_lower for word in query_words):
+        return False
         words = request.lower().split()
         for word in words:
             if word not in action_words:

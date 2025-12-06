@@ -52,3 +52,28 @@ permissions.json
 credentials.json
 token.json
 
+# Action history
+action_history.json
+
+# Contact relationships
+contact_relationships.json
+
+# Message templates
+message_templates.json
+
+# Contact groups
+contact_groups.json
+
+# Notifications
+notifications.json
+notification_preferences.json
+
+# Follow-up scheduler data
+follow_up_data.json
+
+# Contacts cache
+contacts_cache.json
+
+# User preferences
+user_preferences.json
+

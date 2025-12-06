@@ -2,18 +2,25 @@
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
+from messaging_rules import validate_message_storage, should_separate_from_conversation
+from messaging_rules import validate_message_storage, should_separate_from_conversation
 
-# Conversation threads: chat_id -> list of messages with metadata
 conversation_threads: Dict[str, List[dict]] = {}
 
-# Reply detection: track last message from each sender per chat
-last_messages: Dict[str, dict] = {}  # chat_id -> {sender, timestamp, text}
+last_messages: Dict[str, dict] = {}
 
-# Message timestamps for reply detection
 message_timestamps: Dict[str, List[datetime]] = defaultdict(list)
 
 def add_message(chat_id: str, sender: str, text: str, message_id: Optional[str] = None, is_bot: bool = False):
-    """Add a message to conversation thread."""
+    """Add a message to conversation thread. STRICT: Only stores clean JSON data, no hallucination."""
+    if not text or not isinstance(text, str):
+        print(f"[ConversationTracker] ⚠️  Skipping invalid message: missing or invalid text")
+        return
+    
+    if should_separate_from_conversation(text):
+        print(f"[ConversationTracker] ⚠️  Skipping reminder/email message (kept separate from conversation logs): {text[:50]}...")
+        return
+    
     if chat_id not in conversation_threads:
         conversation_threads[chat_id] = []
     
@@ -25,10 +32,13 @@ def add_message(chat_id: str, sender: str, text: str, message_id: Optional[str] 
         "is_bot": is_bot
     }
     
+    if not validate_message_storage(message_entry):
+        print(f"[ConversationTracker] ⚠️  Skipping invalid message data (validation failed)")
+        return
+    
     conversation_threads[chat_id].append(message_entry)
     message_timestamps[chat_id].append(datetime.now())
     
-    # Track last message from this sender
     if not is_bot:
         last_messages[chat_id] = {
             "sender": sender,
@@ -37,7 +47,6 @@ def add_message(chat_id: str, sender: str, text: str, message_id: Optional[str] 
             "message_id": message_id
         }
     
-    # Keep only last 200 messages per chat
     if len(conversation_threads[chat_id]) > 200:
         conversation_threads[chat_id] = conversation_threads[chat_id][-200:]
         message_timestamps[chat_id] = message_timestamps[chat_id][-200:]

@@ -6,6 +6,8 @@ from typing import Dict, List, Optional, Callable
 from meeting_detector import get_meetings_needing_reminders, format_reminder_message
 from gmail_client import get_gmail_service, get_recent_emails, detect_urgent_emails
 from series_api import send_message, create_chat
+from action_history import log_action
+from notification_preferences import should_send_proactive_reminder, get_urgent_email_limit
 import os
 
 # Reminder times: 1 day, 1 hour, 30 minutes, 5 minutes before meeting
@@ -40,19 +42,34 @@ class ReminderScheduler:
         self.sent_reminders = set()  # Track sent reminders to avoid duplicates
         self.last_urgent_check = None
     
-    def send_reminder(self, message: str, meeting_id: str = None):
+    def send_reminder(self, message: str, meeting_id: str = None, reminder_type: str = "meeting"):
         """Send a reminder message to the user."""
+        if not should_send_proactive_reminder(reminder_type):
+            print(f"[ReminderScheduler] ⏸️  Proactive {reminder_type} reminders disabled by user preference")
+            return
+        
         if self.send_reminder_callback:
-            # Use callback (e.g., from bot_service)
             self.send_reminder_callback(message)
+            log_action("reminder_sent", {
+                "type": reminder_type,
+                "meeting_id": meeting_id,
+                "message": message,
+                "success": True,
+                "proactive": True
+            })
         else:
-            # Use Series API directly - send to recipient number
             try:
                 if REMINDER_CHAT_ID:
                     send_message(int(REMINDER_CHAT_ID), message)
+                    log_action("reminder_sent", {
+                        "type": "meeting",
+                        "meeting_id": meeting_id,
+                        "chat_id": REMINDER_CHAT_ID,
+                        "message": message,
+                        "success": True
+                    })
                     print(f"[ReminderScheduler] ✅ Reminder sent to chat {REMINDER_CHAT_ID}")
                 else:
-                    # Format recipient number (ensure +1 prefix)
                     recipient = RECIPIENT_NUMBER
                     if not recipient.startswith("+"):
                         if recipient.startswith("1") and len(recipient) == 11:
@@ -60,128 +77,168 @@ class ReminderScheduler:
                         elif len(recipient) == 10:
                             recipient = f"+1{recipient}"
                     
-                    # Create chat with recipient number and send reminder
                     create_chat(
                         phone_numbers=[recipient],
                         message_text=message,
                         display_name="Meeting Reminder"
                     )
+                    log_action("reminder_sent", {
+                        "type": "meeting",
+                        "meeting_id": meeting_id,
+                        "recipient": recipient,
+                        "message": message,
+                        "success": True,
+                        "proactive": True
+                    })
                     print(f"[ReminderScheduler] ✅ Reminder sent to {recipient}")
             except Exception as e:
+                log_action("reminder_sent", {
+                    "type": "meeting",
+                    "meeting_id": meeting_id,
+                    "message": message,
+                    "success": False,
+                    "error": str(e)
+                })
                 print(f"[ReminderScheduler] ❌ Error sending reminder: {e}")
                 import traceback
                 traceback.print_exc()
     
     def check_meeting_reminders(self):
-        """Check for meetings that need reminders."""
+        """Check for meetings that need reminders (non-blocking, with timeout). STRICT: Reminders are separate from conversation logs."""
         try:
-            reminders = get_meetings_needing_reminders(REMINDER_TIMES)
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
             
-            for reminder in reminders:
-                meeting_id = reminder.get('id')
-                reminder_time = reminder.get('reminder_time')
+            def check_reminders():
+                reminders = get_meetings_needing_reminders(REMINDER_TIMES)
                 
-                # Create unique key for this reminder
-                reminder_key = f"{meeting_id}_{reminder_time}"
-                
-                # Skip if already sent
-                if reminder_key in self.sent_reminders:
-                    continue
-                
-                # Format and send reminder
-                message = format_reminder_message(reminder, reminder_time)
-                self.send_reminder(message, meeting_id)
-                
-                # Mark as sent
-                self.sent_reminders.add(reminder_key)
-                print(f"[ReminderScheduler] 📅 Reminder sent for meeting: {reminder.get('title')}")
+                for reminder in reminders:
+                    meeting_id = reminder.get('id')
+                    reminder_time = reminder.get('reminder_time')
+                    
+                    reminder_key = f"{meeting_id}_{reminder_time}"
+                    
+                    if reminder_key in self.sent_reminders:
+                        continue
+                    
+                    message = format_reminder_message(reminder, reminder_time)
+                    self.send_reminder(message, meeting_id, reminder_type="meeting")
+                    
+                    self.sent_reminders.add(reminder_key)
+                    print(f"[ReminderScheduler] 📅 Reminder sent for meeting: {reminder.get('title')}")
+            
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(check_reminders)
+                future.result(timeout=90)
         
+        except FutureTimeoutError:
+            print(f"[ReminderScheduler] ⚠️  Meeting reminder check timed out (90s), skipping this cycle")
         except Exception as e:
             print(f"[ReminderScheduler] ❌ Error checking meeting reminders: {e}")
             import traceback
             traceback.print_exc()
     
     def check_urgent_emails(self, ai_client=None):
-        """Check for urgent emails and send notifications (limited to avoid spam)."""
+        """Check for urgent emails and send notifications (non-blocking, with timeout). STRICT: Email alerts are separate from conversation logs."""
         try:
-            gmail_service = get_gmail_service()
-            if not gmail_service:
-                return
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
             
-            # Get recent emails (last 24 hours)
-            recent_emails = get_recent_emails(gmail_service, max_results=30, query="newer_than:1d")
+            def check_emails():
+                gmail_service = get_gmail_service()
+                if not gmail_service:
+                    return
+                
+                recent_emails = get_recent_emails(gmail_service, max_results=30, query="newer_than:1d")
+                
+                if not recent_emails:
+                    return
+                
+                from gmail_client import detect_urgent_emails
+                max_urgent = get_urgent_email_limit()
+                urgent_emails = detect_urgent_emails(recent_emails, ai_client=ai_client, max_urgent=max_urgent)
+                
+                if not urgent_emails:
+                    return
+                
+                sent_count = 0
+                for email in urgent_emails:
+                    email_id = email.get('id')
+                    
+                    if email_id in self.sent_reminders:
+                        continue
+                    
+                    subject = email.get('subject', 'No Subject')
+                    sender = email.get('from', 'Unknown')
+                    snippet = email.get('snippet', '')[:200]
+                    urgency_reason = email.get('urgency_reason', 'Classified as urgent')
+                    
+                    message = f"🚨 Urgent Email Alert\n\n"
+                    message += f"📧 From: {sender}\n"
+                    message += f"📌 Subject: {subject}\n"
+                    message += f"💬 Preview: {snippet}...\n\n"
+                    message += f"⚠️ {urgency_reason}"
+                    
+                    self.send_reminder(message, email_id, reminder_type="urgent_email")
+                    
+                    log_action("reminder_sent", {
+                        "type": "urgent_email",
+                        "email_id": email_id,
+                        "subject": subject,
+                        "from": sender,
+                        "message": message,
+                        "success": True,
+                        "proactive": True
+                    })
+                    
+                    self.sent_reminders.add(email_id)
+                    sent_count += 1
+                    print(f"[ReminderScheduler] 🚨 Urgent email notification sent: {subject[:50]}")
+                    
+                    max_urgent = get_urgent_email_limit()
+                    if sent_count >= max_urgent:
+                        break
             
-            if not recent_emails:
-                return
-            
-            # Detect urgent emails using AI classification (max 3 per check)
-            from gmail_client import detect_urgent_emails
-            urgent_emails = detect_urgent_emails(recent_emails, ai_client=ai_client, max_urgent=3)
-            
-            if not urgent_emails:
-                return
-            
-            # Send notifications for truly urgent emails only
-            sent_count = 0
-            for email in urgent_emails:
-                email_id = email.get('id')
-                
-                # Skip if already notified
-                if email_id in self.sent_reminders:
-                    continue
-                
-                # Format urgent email notification
-                subject = email.get('subject', 'No Subject')
-                sender = email.get('from', 'Unknown')
-                snippet = email.get('snippet', '')[:200]
-                urgency_reason = email.get('urgency_reason', 'Classified as urgent')
-                
-                message = f"🚨 Urgent Email Alert\n\n"
-                message += f"📧 From: {sender}\n"
-                message += f"📌 Subject: {subject}\n"
-                message += f"💬 Preview: {snippet}...\n\n"
-                message += f"⚠️ {urgency_reason}"
-                
-                self.send_reminder(message, email_id)
-                
-                # Mark as notified
-                self.sent_reminders.add(email_id)
-                sent_count += 1
-                print(f"[ReminderScheduler] 🚨 Urgent email notification sent: {subject[:50]}")
-                
-                # Limit to max 3 urgent emails per check
-                if sent_count >= 3:
-                    break
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(check_emails)
+                future.result(timeout=20)
         
+        except FutureTimeoutError:
+            print(f"[ReminderScheduler] ⚠️  Urgent email check timed out (20s), skipping this cycle")
         except Exception as e:
             print(f"[ReminderScheduler] ❌ Error checking urgent emails: {e}")
             import traceback
             traceback.print_exc()
     
     def run_loop(self):
-        """Main loop for checking reminders."""
+        """Main loop for checking reminders (non-blocking, error-resilient)."""
         print("[ReminderScheduler] 🚀 Starting reminder scheduler...")
         self.running = True
         
         while self.running:
             try:
-                # Check meeting reminders every minute
-                self.check_meeting_reminders()
+                try:
+                    self.check_meeting_reminders()
+                except Exception as e:
+                    print(f"[ReminderScheduler] ⚠️  Meeting reminder check failed (non-blocking): {e}")
                 
-                # Check urgent emails every 5 minutes
                 now = datetime.now()
                 if not self.last_urgent_check or (now - self.last_urgent_check).total_seconds() >= 300:
-                    self.check_urgent_emails(self.ai_client)
-                    self.last_urgent_check = now
+                    try:
+                        self.check_urgent_emails(self.ai_client)
+                        self.last_urgent_check = now
+                    except Exception as e:
+                        print(f"[ReminderScheduler] ⚠️  Urgent email check failed (non-blocking): {e}")
+                        self.last_urgent_check = now
                 
-                # Sleep for 1 minute
                 time.sleep(60)
             
+            except KeyboardInterrupt:
+                print("[ReminderScheduler] Stopping reminder scheduler...")
+                break
             except Exception as e:
-                print(f"[ReminderScheduler] ❌ Error in reminder loop: {e}")
+                print(f"[ReminderScheduler] ❌ Error in reminder loop (will retry): {e}")
                 import traceback
                 traceback.print_exc()
-                time.sleep(60)  # Continue after error
+                time.sleep(60)
     
     def start(self):
         """Start the reminder scheduler in a background thread."""

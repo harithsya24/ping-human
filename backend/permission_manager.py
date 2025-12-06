@@ -92,7 +92,7 @@ def grant_contact_permission(chat_id: str, user_phone: str) -> Dict:
     
     return {
         "granted": True,
-        "message": "✅ Contact access granted! I can now help you with actions using your contacts."
+        "message": "✅ Contact access granted!"
     }
 
 def deny_contact_permission(chat_id: str, user_phone: str) -> Dict:
@@ -104,7 +104,8 @@ def deny_contact_permission(chat_id: str, user_phone: str) -> Dict:
     
     return {
         "granted": False,
-        "message": "Contact access denied. I won't be able to use your contacts for actions."
+        # "message": "Contact access denied. I won't be able to use your contacts for actions."
+        "message": ""  # Commented out - don't send message when permission denied
     }
 
 def check_contact_permission() -> bool:
