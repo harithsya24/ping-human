@@ -58,9 +58,9 @@ class FollowUpScheduler:
                         if "sent_at" in info:
                             info["sent_at"] = datetime.fromisoformat(info["sent_at"])
                     
-                    print(f"[FollowUpScheduler] ✅ Loaded {len(self.pending_follow_ups)} pending follow-ups")
+                    print(f"[FollowUpScheduler] [OK] Loaded {len(self.pending_follow_ups)} pending follow-ups")
             except Exception as e:
-                print(f"[FollowUpScheduler] ⚠️  Error loading follow-up data: {e}")
+                print(f"[FollowUpScheduler] [WARNING] Error loading follow-up data: {e}")
                 self.pending_follow_ups = {}
                 self.sent_messages = {}
     
@@ -90,7 +90,7 @@ class FollowUpScheduler:
             with open(FOLLOW_UP_DATA_FILE, 'w') as f:
                 json.dump(data_to_save, f, indent=2)
         except Exception as e:
-            print(f"[FollowUpScheduler] ⚠️  Error saving follow-up data: {e}")
+            print(f"[FollowUpScheduler] [WARNING] Error saving follow-up data: {e}")
     
     def track_sent_message(
         self,
@@ -138,9 +138,9 @@ class FollowUpScheduler:
         
         self._save_data()
         
-        print(f"[FollowUpScheduler] 📝 Tracking message to {recipient_name} ({recipient_phone})")
-        print(f"[FollowUpScheduler] ⏰ Will check for reply at {reply_deadline.strftime('%H:%M:%S')}")
-        print(f"[FollowUpScheduler] 📅 Follow-up scheduled for {follow_up_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[FollowUpScheduler]  Tracking message to {recipient_name} ({recipient_phone})")
+        print(f"[FollowUpScheduler]  Will check for reply at {reply_deadline.strftime('%H:%M:%S')}")
+        print(f"[FollowUpScheduler]  Follow-up scheduled for {follow_up_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     def check_for_reply(self, chat_id: str, sender_phone: str) -> bool:
         """
@@ -182,13 +182,13 @@ class FollowUpScheduler:
         sender_normalized = normalize_phone(sender_phone)
         recipient_normalized = normalize_phone(recipient_phone)
         
-        print(f"[FollowUpScheduler] 🔍 Checking reply: chat_id={chat_id}, "
+        print(f"[FollowUpScheduler]  Checking reply: chat_id={chat_id}, "
               f"sender={sender_normalized}, recipient={recipient_normalized}")
         
         if sender_normalized == recipient_normalized and sender_normalized:
             # This is a reply! Cancel the follow-up
-            print(f"[FollowUpScheduler] ✅ Reply received from {follow_up_info.get('recipient_name')}!")
-            print(f"[FollowUpScheduler] 🚫 Canceling follow-up for chat {chat_id}")
+            print(f"[FollowUpScheduler] [OK] Reply received from {follow_up_info.get('recipient_name')}!")
+            print(f"[FollowUpScheduler] [BLOCKED] Canceling follow-up for chat {chat_id}")
             
             follow_up_info["reply_received"] = True
             follow_up_info["reply_received_at"] = datetime.now()
@@ -212,9 +212,9 @@ class FollowUpScheduler:
             
             if sender_normalized == tracked_recipient_normalized and sender_normalized:
                 # Found a match by phone number!
-                print(f"[FollowUpScheduler] ✅ Reply received from {tracked_info.get('recipient_name')} "
+                print(f"[FollowUpScheduler] [OK] Reply received from {tracked_info.get('recipient_name')} "
                       f"(matched by phone: {sender_normalized}, chat_id={tracked_chat_id})!")
-                print(f"[FollowUpScheduler] 🚫 Canceling follow-up for chat {tracked_chat_id}")
+                print(f"[FollowUpScheduler] [BLOCKED] Canceling follow-up for chat {tracked_chat_id}")
                 
                 tracked_info["reply_received"] = True
                 tracked_info["reply_received_at"] = datetime.now()
@@ -259,7 +259,7 @@ class FollowUpScheduler:
                 
                 sender_number = os.getenv("SENDER_NUMBER")  # User's phone number
                 if not sender_number:
-                    print("[FollowUpScheduler] ⚠️  SENDER_NUMBER not set, cannot send from user")
+                    print("[FollowUpScheduler] [WARNING] SENDER_NUMBER not set, cannot send from user")
                     raise ValueError("SENDER_NUMBER environment variable not set")
                 
                 recipient = recipient_phone
@@ -292,7 +292,7 @@ class FollowUpScheduler:
                 follow_up_info["follow_up_at"] = next_follow_up_time
                 follow_up_info["follow_up_sent"] = False  # Reset so next one can be sent
                 follow_up_info["reply_deadline"] = now + timedelta(minutes=REPLY_WAIT_MINUTES)
-                print(f"[FollowUpScheduler] 📅 Next follow-up (#{follow_up_info['follow_up_count'] + 1}) scheduled for {next_follow_up_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"[FollowUpScheduler]  Next follow-up (#{follow_up_info['follow_up_count'] + 1}) scheduled for {next_follow_up_time.strftime('%Y-%m-%d %H:%M:%S')}")
             else:
                 # Maximum follow-ups reached - remove from pending
                 print(f"[FollowUpScheduler] ⛔ Maximum follow-ups ({MAX_FOLLOW_UPS}) reached. No more follow-ups for {recipient_name}.")
@@ -310,10 +310,10 @@ class FollowUpScheduler:
                 "success": True
             })
             
-            print(f"[FollowUpScheduler] ✅ Follow-up sent to {recipient_name} ({recipient_phone})")
+            print(f"[FollowUpScheduler] [OK] Follow-up sent to {recipient_name} ({recipient_phone})")
             
         except Exception as e:
-            print(f"[FollowUpScheduler] ❌ Error sending follow-up: {e}")
+            print(f"[FollowUpScheduler] [ERROR] Error sending follow-up: {e}")
             import traceback
             traceback.print_exc()
             
@@ -333,12 +333,12 @@ class FollowUpScheduler:
         if not self.pending_follow_ups:
             return  # No pending follow-ups
         
-        print(f"[FollowUpScheduler] 🔍 Checking {len(self.pending_follow_ups)} pending follow-ups...")
+        print(f"[FollowUpScheduler]  Checking {len(self.pending_follow_ups)} pending follow-ups...")
         
         for chat_id, follow_up_info in list(self.pending_follow_ups.items()):
             # Check if reply was already received
             if follow_up_info.get("reply_received", False):
-                print(f"[FollowUpScheduler] ✅ Reply already received for chat {chat_id}, removing from pending")
+                print(f"[FollowUpScheduler] [OK] Reply already received for chat {chat_id}, removing from pending")
                 del self.pending_follow_ups[chat_id]
                 continue
             
@@ -364,13 +364,13 @@ class FollowUpScheduler:
                 
                 time_until_follow_up = (follow_up_at - now).total_seconds() / 60  # minutes
                 
-                print(f"[FollowUpScheduler] 📊 Chat {chat_id} ({recipient_name}): "
+                print(f"[FollowUpScheduler]  Chat {chat_id} ({recipient_name}): "
                       f"Sent {time_since_sent:.1f} min ago, "
                       f"Follow-up in {time_until_follow_up:.1f} min, "
                       f"Already sent: {follow_up_info.get('follow_up_sent', False)}")
                 
                 if now >= follow_up_at and not follow_up_info.get("follow_up_sent", False):
-                    print(f"[FollowUpScheduler] ⏰ Time to send follow-up to {recipient_name}!")
+                    print(f"[FollowUpScheduler]  Time to send follow-up to {recipient_name}!")
                     follow_ups_to_send.append(follow_up_info)
             else:
                 # Still waiting for reply deadline
@@ -384,11 +384,11 @@ class FollowUpScheduler:
             for follow_up_info in follow_ups_to_send:
                 self.send_follow_up(follow_up_info)
         else:
-            print(f"[FollowUpScheduler] ✅ No follow-ups to send at this time")
+            print(f"[FollowUpScheduler] [OK] No follow-ups to send at this time")
     
     def run_loop(self):
         """Main loop for checking and sending follow-ups."""
-        print("[FollowUpScheduler] 🚀 Starting follow-up scheduler...")
+        print("[FollowUpScheduler]  Starting follow-up scheduler...")
         self.running = True
         
         while self.running:
@@ -400,7 +400,7 @@ class FollowUpScheduler:
                 print("[FollowUpScheduler] Stopping follow-up scheduler...")
                 break
             except Exception as e:
-                print(f"[FollowUpScheduler] ❌ Error in follow-up loop (will retry): {e}")
+                print(f"[FollowUpScheduler] [ERROR] Error in follow-up loop (will retry): {e}")
                 import traceback
                 traceback.print_exc()
                 time.sleep(60)
@@ -413,7 +413,7 @@ class FollowUpScheduler:
         
         self.thread = threading.Thread(target=self.run_loop, daemon=True)
         self.thread.start()
-        print("[FollowUpScheduler] ✅ Started in background thread")
+        print("[FollowUpScheduler] [OK] Started in background thread")
     
     def stop(self):
         """Stop the follow-up scheduler."""

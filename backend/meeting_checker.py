@@ -133,7 +133,7 @@ def get_meetings_and_emails_summary() -> str:
     check_result = check_meetings_and_emails()
     
     if not check_result.get("success"):
-        return f"❌ Unable to check meetings/emails: {check_result.get('error', 'Unknown error')}"
+        return f"[ERROR] Unable to check meetings/emails: {check_result.get('error', 'Unknown error')}"
     
     meetings = check_result.get("meetings", [])
     urgent_emails = check_result.get("urgent_emails", [])

@@ -213,12 +213,12 @@ def format_reminder_message(meeting: Dict, reminder_time: timedelta) -> str:
     
     # Add location if available
     if location:
-        message += f"\n📍 Location: {location}"
+        message += f"\n[LOCATION] Location: {location}"
     
     # Add description if available (shortened)
     if description:
         desc_short = description[:150] + "..." if len(description) > 150 else description
-        message += f"\n\n📝 {desc_short}"
+        message += f"\n\n {desc_short}"
     
     return message
 

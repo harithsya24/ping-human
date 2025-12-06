@@ -161,7 +161,7 @@ def flag_user(phone: str, reason: str, severity: str = "medium"):
     # Auto-block after 3 flags
     if user_flags[phone]["count"] >= 3:
         user_flags[phone]["blocked"] = True
-        print(f"[Guardrails] ⚠️  User {phone} auto-blocked after {user_flags[phone]['count']} violations")
+        print(f"[Guardrails] [WARNING] User {phone} auto-blocked after {user_flags[phone]['count']} violations")
 
 def record_violation(phone: str, violation_type: str, details: Dict):
     """Record a safety violation."""
@@ -245,7 +245,7 @@ def unblock_user(phone: str):
     if phone in user_flags:
         user_flags[phone]["blocked"] = False
         user_flags[phone]["unblocked_at"] = datetime.now().isoformat()
-        print(f"[Guardrails] ✅ User {phone} unblocked")
+        print(f"[Guardrails] [OK] User {phone} unblocked")
 
 def reset_user_flags(phone: str):
     """Reset flags for a user."""
@@ -255,5 +255,5 @@ def reset_user_flags(phone: str):
         violation_history[phone] = []
     if phone in user_message_counts:
         user_message_counts[phone] = []
-    print(f"[Guardrails] ✅ User {phone} flags reset")
+    print(f"[Guardrails] [OK] User {phone} flags reset")
 

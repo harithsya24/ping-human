@@ -75,19 +75,19 @@ def send_reminder_callback(message: str):
             display_name="Meeting Reminder",
             enforce_recipient=True
         )
-        print(f"[Bot] 📅 Reminder sent to {recipient_number}: {message[:50]}...")
+        print(f"[Bot] Reminder sent to {recipient_number}: {message[:50]}...")
     except Exception as e:
-        print(f"[Bot] ❌ Error sending reminder: {e}")
+        print(f"[Bot] ERROR: Error sending reminder: {e}")
         import traceback
         traceback.print_exc()
 
 # Start reminder scheduler with AI client for smart email classification
 try:
     start_reminder_scheduler(send_reminder_callback, ai_client)
-    print("[Bot] ✅ Reminder scheduler started with AI email classification")
+    print("[Bot] SUCCESS: Reminder scheduler started with AI email classification")
 except Exception as e:
-    print(f"[Bot] ⚠️  Could not start reminder scheduler: {e}")
-    print("[Bot] ℹ️  Meeting reminders will not be available")
+    print(f"[Bot] WARNING: Could not start reminder scheduler: {e}")
+    print("[Bot] [INFO] Meeting reminders will not be available")
 
 # =========================
 # Follow-Up Scheduler Callback
@@ -101,7 +101,7 @@ def send_follow_up_callback(recipient_phone: str, message: str, chat_id: str):
         # Get user's phone number (SENDER_NUMBER) - this is the user's number
         sender_number = os.getenv("SENDER_NUMBER")
         if not sender_number:
-            print("[Bot] ⚠️  SENDER_NUMBER not set, cannot send follow-up from user")
+            print("[Bot] WARNING: SENDER_NUMBER not set, cannot send follow-up from user")
             return
         
         recipient = recipient_phone
@@ -120,9 +120,9 @@ def send_follow_up_callback(recipient_phone: str, message: str, chat_id: str):
             display_name=None,  # Use default display name
             enforce_recipient=False
         )
-        print(f"[Bot] 📨 Follow-up sent from user ({sender_number}) to {recipient}: {message[:50]}...")
+        print(f"[Bot] Follow-up sent from user ({sender_number}) to {recipient}: {message[:50]}...")
     except Exception as e:
-        print(f"[Bot] ❌ Error sending follow-up: {e}")
+        print(f"[Bot] ERROR: Error sending follow-up: {e}")
         import traceback
         traceback.print_exc()
         import traceback
@@ -131,10 +131,10 @@ def send_follow_up_callback(recipient_phone: str, message: str, chat_id: str):
 # Start follow-up scheduler
 try:
     start_follow_up_scheduler(send_follow_up_callback)
-    print("[Bot] ✅ Follow-up scheduler started")
+    print("[Bot] SUCCESS: Follow-up scheduler started")
 except Exception as e:
-    print(f"[Bot] ⚠️  Could not start follow-up scheduler: {e}")
-    print("[Bot] ℹ️  Follow-up messages will not be available")
+    print(f"[Bot] WARNING: Could not start follow-up scheduler: {e}")
+    print("[Bot] [INFO] Follow-up messages will not be available")
 
 # =========================
 # Main Message Processing Loop
@@ -148,23 +148,23 @@ def run_bot():
         from contact_manager import CONTACTS_JSON_FILE
         import os
         if os.path.exists(CONTACTS_JSON_FILE):
-            print(f"[Bot] ℹ️  Contacts cache exists ({CONTACTS_JSON_FILE}), skipping macOS sync")
-            print("[Bot] ℹ️  Using cached contacts. Contacts will be updated from incoming messages.")
+            print(f"[Bot] INFO: Contacts cache exists ({CONTACTS_JSON_FILE}), skipping macOS sync")
+            print("[Bot] INFO: Using cached contacts. Contacts will be updated from incoming messages.")
         else:
             print("[Bot] Syncing contacts from macOS Contacts app...")
             synced_count = sync_from_macos_contacts()
             if synced_count > 0:
-                print(f"[Bot] ✅ Loaded {synced_count} contacts from macOS Contacts app")
+                print(f"[Bot] SUCCESS: Loaded {synced_count} contacts from macOS Contacts app")
             else:
-                print("[Bot] ℹ️  No contacts synced from macOS (will use contacts from iMessage)")
-    except Exception as e:
-        print(f"[Bot] ⚠️  Could not sync macOS contacts: {e}")
-        print("[Bot] ℹ️  Will use contacts from iMessage data instead")
+                print("[Bot] INFO: No contacts synced from macOS (will use contacts from iMessage)")
+        except Exception as e:
+            print(f"[Bot] WARNING: Could not sync macOS contacts: {e}")
+            print("[Bot] INFO: Will use contacts from iMessage data instead")
     
     # Contacts are automatically loaded from JSON on module import
     from contact_manager import get_all_contacts
     contact_count = len(get_all_contacts())
-    print(f"[Bot] ✅ Contacts cache ready ({contact_count} contacts loaded)")
+    print(f"[Bot] SUCCESS: Contacts cache ready ({contact_count} contacts loaded)")
     
     # Main loop with reconnection
     while True:
@@ -211,7 +211,7 @@ def run_bot():
                     message_key = (str(chat_id), str(message_id), text_hash)
                     
                     if message_key in processed_messages:
-                        print(f"[Bot] ⚠️  Duplicate message detected (chat_id={chat_id}, message_id={message_id}), skipping...")
+                        print(f"[Bot] WARNING: Duplicate message detected (chat_id={chat_id}, message_id={message_id}), skipping...")
                         continue
                     
                     processed_messages.add(message_key)
@@ -240,29 +240,29 @@ def run_bot():
                                     "source": "iphone_message",
                                     "last_seen": datetime.now().isoformat()
                                 })
-                                print(f"[Bot] 📱 Extracted contact from iPhone: {display_name} ({phone})")
+                                print(f"[Bot] Extracted contact from iPhone: {display_name} ({phone})")
 
                     # Skip empty messages (unless it's a location)
                     try:
                         is_location = is_location_message(data)
                     except Exception as e:
-                        print(f"[Bot] ⚠️  Error checking location: {e}")
+                        print(f"[Bot] WARNING: Error checking location: {e}")
                         is_location = False
                     
-                    print(f"[Bot] 🔍 Processing message: text='{text[:50] if text else 'EMPTY'}', is_location={is_location}, len={len(text) if text else 0}")
+                    print(f"[Bot] Processing message: text='{text[:50] if text else 'EMPTY'}', is_location={is_location}, len={len(text) if text else 0}")
                     if not text and not is_location:
-                        print(f"[Bot] ⏭️  Skipping empty message (no text and no location)")
+                        print(f"[Bot] Skipping empty message (no text and no location)")
                         continue
                     
-                    print(f"[Bot] ✅ Message has content, continuing processing...")
+                    print(f"[Bot] Message has content, continuing processing...")
 
                     # =========================
                     # LOCATION HANDLING (for address collection)
                     # =========================
                     # Check if this is a location message
                     if is_location:
-                        print(f"[Bot] 📍 Location message detected! Data keys: {list(data.keys())}")
-                        print(f"[Bot] 📍 Full data structure: {json.dumps(data, indent=2, default=str)[:500]}...")
+                        print(f"[Bot] [LOCATION] Location message detected! Data keys: {list(data.keys())}")
+                        print(f"[Bot] [LOCATION] Full data structure: {json.dumps(data, indent=2, default=str)[:500]}...")
                         
                         # Check if we're waiting for address in pending details
                         pending_detail = get_pending_details(str(chat_id))
@@ -270,7 +270,7 @@ def run_bot():
                             # User shared location during order flow, convert to address
                             address = process_location_message(data, save_as_home=False)
                             if address:
-                                print(f"[Bot] 📍 Location received, converted to address: {address}")
+                                print(f"[Bot] [LOCATION] Location received, converted to address: {address}")
                                 # Use location as delivery address
                                 pending_detail["delivery_address"] = address
                                 pending_detail["location_received"] = True
@@ -283,14 +283,14 @@ def run_bot():
                                 else:
                                     # We have address but need order details
                                     set_pending_details(str(chat_id), pending_detail)
-                                    reply_text = f"📍 Great! I got your location: {address}\n\nNow please provide:\n• What flavor/type would you like?\n• Size/quantity?\n• Any special instructions?"
+                                    reply_text = f"[LOCATION] Great! I got your location: {address}\n\nNow please provide:\n• What flavor/type would you like?\n• Size/quantity?\n• Any special instructions?"
                                     send_message(int(chat_id), reply_text)
                                     add_message(str(chat_id), sender, reply_text, None, is_bot=True)
                                     record_message_sent()
                                     record_response()
                                     continue
                             else:
-                                reply_text = "📍 I received your location but couldn't convert it to an address. Please provide the address manually or try again."
+                                reply_text = "[LOCATION] I received your location but couldn't convert it to an address. Please provide the address manually or try again."
                                 send_message(int(chat_id), reply_text)
                                 add_message(str(chat_id), sender, reply_text, None, is_bot=True)
                                 record_message_sent()
@@ -300,17 +300,17 @@ def run_bot():
                             # Location shared but not in order flow - could be for saving home address
                             address = process_location_message(data, save_as_home=False)
                             if address:
-                                print(f"[Bot] 📍 Location received (not in order flow): {address}")
+                                print(f"[Bot] [LOCATION] Location received (not in order flow): {address}")
                                 # Could prompt user if they want to save this as home address
                                 # For now, just acknowledge
-                                reply_text = f"📍 I received your location: {address}\n\nIf you're placing an order, please start with 'order pizza' and I'll use this location for delivery."
+                                reply_text = f"[LOCATION] I received your location: {address}\n\nIf you're placing an order, please start with 'order pizza' and I'll use this location for delivery."
                                 send_message(int(chat_id), reply_text)
                                 add_message(str(chat_id), sender, reply_text, None, is_bot=True)
                                 record_message_sent()
                                 record_response()
                                 continue
                             else:
-                                print(f"[Bot] ⚠️  Location detected but couldn't extract coordinates")
+                                print(f"[Bot] [WARNING] Location detected but couldn't extract coordinates")
                                 continue
 
                     # =========================
@@ -326,9 +326,9 @@ def run_bot():
                         
                         # Ask for order details
                         if action_type == "order":
-                            reply_text = f"✅ Great! I found '{contact_name}' in your contacts.\n\n📝 Please provide order details:\n• What flavor/type would you like? (e.g., margherita, pepperoni)\n• Size/quantity?\n• Any special instructions?"
+                            reply_text = f"[OK] Great! I found '{contact_name}' in your contacts.\n\n Please provide order details:\n• What flavor/type would you like? (e.g., margherita, pepperoni)\n• Size/quantity?\n• Any special instructions?"
                         else:
-                            reply_text = f"✅ Great! I found '{contact_name}' in your contacts.\n\n📝 Please provide details for your {action_type} request:"
+                            reply_text = f"[OK] Great! I found '{contact_name}' in your contacts.\n\n Please provide details for your {action_type} request:"
                         
                         # Set pending details collection
                         set_pending_details(str(chat_id), {
@@ -356,10 +356,10 @@ def run_bot():
                         permission_response = process_permission_response(text, str(chat_id), sender)
                         if permission_response:
                             if permission_response.get("granted"):
-                                print(f"[Bot] ✅ Permission granted by user (silent)")
+                                print(f"[Bot] [OK] Permission granted by user (silent)")
                                 # Don't send message - just log it
                             else:
-                                print(f"[Bot] ❌ Permission denied by user (silent)")
+                                print(f"[Bot] [ERROR] Permission denied by user (silent)")
                                 # Don't send message when denied - commented out
                                 reply_text = permission_response.get("message", "")
                                 if reply_text:  # Only send if message is not empty
@@ -384,7 +384,7 @@ def run_bot():
                         # Check if location was received and use it as address
                         if pending_detail.get("location_received") and pending_detail.get("delivery_address"):
                             delivery_address = pending_detail.get("delivery_address")
-                            print(f"[Bot] 📍 Using location address: {delivery_address}")
+                            print(f"[Bot] [LOCATION] Using location address: {delivery_address}")
                             # Clear location flag
                             pending_detail["location_received"] = False
                             # Continue to order processing with this address
@@ -397,17 +397,17 @@ def run_bot():
                         original_request = pending_detail.get("original_request", "")
                         
                         # Debug: Print contact info
-                        print(f"[Bot] 🔍 Executing {action_type} action")
-                        print(f"[Bot] 🔍 Contact info: {json.dumps(contact_info, indent=2)}")
-                        print(f"[Bot] 🔍 Contact name: {contact_info.get('name')}")
-                        print(f"[Bot] 🔍 Contact phone: {contact_info.get('phone_number')}")
-                        print(f"[Bot] 🔍 Original request: {original_request}")
-                        print(f"[Bot] 🔍 User details: {text}")
+                        print(f"[Bot]  Executing {action_type} action")
+                        print(f"[Bot]  Contact info: {json.dumps(contact_info, indent=2)}")
+                        print(f"[Bot]  Contact name: {contact_info.get('name')}")
+                        print(f"[Bot]  Contact phone: {contact_info.get('phone_number')}")
+                        print(f"[Bot]  Original request: {original_request}")
+                        print(f"[Bot]  User details: {text}")
                         
                         # Verify contact has phone number
                         if not contact_info.get("phone_number") and not contact_info.get("phone"):
-                            print(f"[Bot] ❌ Contact missing phone number!")
-                            reply_text = f"❌ Error: Contact '{contact_info.get('name', 'Unknown')}' doesn't have a phone number. Cannot send order."
+                            print(f"[Bot] [ERROR] Contact missing phone number!")
+                            reply_text = f"[ERROR] Error: Contact '{contact_info.get('name', 'Unknown')}' doesn't have a phone number. Cannot send order."
                             send_message(int(chat_id), reply_text)
                             add_message(str(chat_id), sender, reply_text, None, is_bot=True)
                             clear_pending_details(str(chat_id))
@@ -420,7 +420,7 @@ def run_bot():
                         # First check if location was already received and processed
                         if pending_detail.get("delivery_address"):
                             delivery_address = pending_detail.get("delivery_address")
-                            print(f"[Bot] 📍 Using location address from shared location: {delivery_address}")
+                            print(f"[Bot] [LOCATION] Using location address from shared location: {delivery_address}")
                         # Check if we're waiting for address (user already provided order details)
                         elif pending_detail.get("waiting_for_address"):
                             # User is providing address now
@@ -461,7 +461,7 @@ def run_bot():
                             # Check if address keywords are mentioned but no clear address
                             elif "address" in text_lower or "deliver" in text_lower or "delivery" in text_lower:
                                 # User mentioned address but didn't provide it clearly - ask for it
-                                reply_text = "📍 I need a delivery address. Please provide:\n• Full address (street, city, zip code)\n• Or say 'home' to use your saved home address\n• Or share your live location 📍"
+                                reply_text = "[LOCATION] I need a delivery address. Please provide:\n• Full address (street, city, zip code)\n• Or say 'home' to use your saved home address\n• Or share your live location [LOCATION]"
                                 send_message(int(chat_id), reply_text)
                                 add_message(str(chat_id), sender, reply_text, None, is_bot=True)
                                 pending_detail["waiting_for_address"] = True
@@ -474,7 +474,7 @@ def run_bot():
                         # If no address found after processing details, ask for it
                         if not delivery_address and not pending_detail.get("waiting_for_address"):
                             # User provided order details but no address - ask for address
-                            reply_text = "📍 Where should I deliver this order?\n\nPlease provide:\n• Full address (street, city, zip code)\n• Or say 'home' to use your saved home address\n• Or share your live location 📍"
+                            reply_text = "[LOCATION] Where should I deliver this order?\n\nPlease provide:\n• Full address (street, city, zip code)\n• Or say 'home' to use your saved home address\n• Or share your live location [LOCATION]"
                             send_message(int(chat_id), reply_text)
                             add_message(str(chat_id), sender, reply_text, None, is_bot=True)
                             pending_detail["waiting_for_address"] = True
@@ -490,7 +490,7 @@ def run_bot():
                         # Check if address is required and provided
                         if not delivery_address:
                             # Address is missing - ask for it
-                            reply_text = "📍 Where should I deliver this order?\n\nPlease provide:\n• Full address (street, city, zip code)\n• Or say 'home' to use your saved home address\n• Or share your live location 📍"
+                            reply_text = "[LOCATION] Where should I deliver this order?\n\nPlease provide:\n• Full address (street, city, zip code)\n• Or say 'home' to use your saved home address\n• Or share your live location [LOCATION]"
                             send_message(int(chat_id), reply_text)
                             add_message(str(chat_id), sender, reply_text, None, is_bot=True)
                             pending_detail["waiting_for_address"] = True
@@ -511,16 +511,16 @@ def run_bot():
                         try:
                             result = execute_action(action_type, full_request, contact_info, str(chat_id), ai_client)
                             
-                            print(f"[Bot] 🔍 Action result: {result}")
+                            print(f"[Bot]  Action result: {result}")
                             
                             if result.get("success"):
                                 contact_name = contact_info.get("name") or contact_info.get("display_name", "Unknown")
                                 sent_msg = result.get('sent_message', '')
                                 
                                 # Show full message with address
-                                reply_text = f"✅ Order sent to {contact_name}!\n\n📨 Complete message sent:\n{sent_msg}"
-                                print(f"[Bot] ✅ Order sent successfully to {contact_name}")
-                                print(f"[Bot] 📨 Full message with address: {sent_msg}")
+                                reply_text = f"[OK] Order sent to {contact_name}!\n\n Complete message sent:\n{sent_msg}"
+                                print(f"[Bot] [OK] Order sent successfully to {contact_name}")
+                                print(f"[Bot]  Full message with address: {sent_msg}")
                                 
                                 log_action("order_placed", {
                                     "chat_id": str(chat_id),
@@ -533,11 +533,11 @@ def run_bot():
                             else:
                                 error_msg = result.get('message', 'Unknown error')
                                 error_detail = result.get('error', '')
-                                reply_text = f"❌ Failed to send order: {error_msg}"
+                                reply_text = f"[ERROR] Failed to send order: {error_msg}"
                                 if error_detail:
                                     reply_text += f"\n\nError: {error_detail}"
-                                print(f"[Bot] ❌ Failed to send order: {error_msg}")
-                                print(f"[Bot] ❌ Error details: {error_detail}")
+                                print(f"[Bot] [ERROR] Failed to send order: {error_msg}")
+                                print(f"[Bot] [ERROR] Error details: {error_detail}")
                                 
                                 log_action("order_placed", {
                                     "chat_id": str(chat_id),
@@ -563,8 +563,8 @@ def run_bot():
                             continue
                         except Exception as e:
                             import traceback
-                            print(f"[Bot] ❌ Error executing action: {e}")
-                            print(f"[Bot] ❌ Traceback: {traceback.format_exc()}")
+                            print(f"[Bot] [ERROR] Error executing action: {e}")
+                            print(f"[Bot] [ERROR] Traceback: {traceback.format_exc()}")
                             
                             log_action("error", {
                                 "chat_id": str(chat_id),
@@ -575,7 +575,7 @@ def run_bot():
                             })
                             
                             clear_pending_details(str(chat_id))
-                            reply_text = f"❌ Error sending order: {str(e)}. Please try again."
+                            reply_text = f"[ERROR] Error sending order: {str(e)}. Please try again."
                             send_message(int(chat_id), reply_text)
                             log_action("message_sent", {
                                 "chat_id": str(chat_id),
@@ -594,14 +594,14 @@ def run_bot():
                     # Check if user is blocked
                     user_status = check_user_status(sender)
                     if not user_status.get("allowed", True):
-                        print(f"[Bot] 🚫 Message from {sender} blocked: {user_status.get('reason', 'unknown')}")
+                        print(f"[Bot] [BLOCKED] Message from {sender} blocked: {user_status.get('reason', 'unknown')}")
                         record_violation(sender, "blocked_user_attempt", {"chat_id": chat_id})
                         continue
                     
                     # Check rate limits
                     rate_ok, rate_reason = check_rate_limit(sender)
                     if not rate_ok:
-                        print(f"[Bot] 🚫 Rate limit exceeded for {sender}: {rate_reason}")
+                        print(f"[Bot] [BLOCKED] Rate limit exceeded for {sender}: {rate_reason}")
                         record_violation(sender, "rate_limit_exceeded", {"reason": rate_reason})
                         continue
                     
@@ -611,20 +611,20 @@ def run_bot():
                     # Check content safety
                     safety_check = check_content_safety(text, ai_client)
                     if not safety_check.get("safe", True):
-                        print(f"[Bot] 🚫 Unsafe content from {sender}: {safety_check.get('message', 'unknown')}")
+                        print(f"[Bot] [BLOCKED] Unsafe content from {sender}: {safety_check.get('message', 'unknown')}")
                         record_violation(sender, safety_check.get("reason", "unsafe_content"), safety_check)
                         flag_user(sender, safety_check.get("reason", "unsafe_content"), safety_check.get("severity", "medium"))
                         continue
                     
                     # Record message for rate limiting
                     record_message(sender)
-                    print(f"[Bot] 📝 Message recorded for rate limiting")
+                    print(f"[Bot]  Message recorded for rate limiting")
 
                     # Get contact information
                     contact = get_contact_by_phone(sender)
                     contact_name = contact.get("name") or contact.get("display_name") if contact else sender
                     
-                    print(f"[Bot] 💬 New message in chat {chat_id} from {contact_name} ({sender}): {text}")
+                    print(f"[Bot]  New message in chat {chat_id} from {contact_name} ({sender}): {text}")
                     print(f"[Bot] 🔄 Starting message processing pipeline...")
 
                     # Track message in conversation thread
@@ -633,12 +633,12 @@ def run_bot():
                     # Check if this is a reply to a tracked message (for follow-up cancellation)
                     is_follow_up_reply = check_for_reply(str(chat_id), sender)
                     if is_follow_up_reply:
-                        print(f"[Bot] ✅ Reply received - follow-up canceled")
+                        print(f"[Bot] [OK] Reply received - follow-up canceled")
                     
                     # Check if this is a reply
                     has_replied_recently = has_replied(str(chat_id), sender, within_minutes=60)
                     if has_replied_recently:
-                        print(f"[Bot] 📨 User {contact_name} has replied within the last hour")
+                        print(f"[Bot]  User {contact_name} has replied within the last hour")
 
                     # Analyze message for sentiment, intent, and language
                     analysis = analyze_message(text, ai_client)
@@ -674,7 +674,7 @@ def run_bot():
                         # Check rate limits before sending
                         can_send, limit_reason = check_rate_limit(sender)
                         if not can_send:
-                            print(f"[Bot] ⚠️  Rate limit check: {limit_reason}")
+                            print(f"[Bot] [WARNING] Rate limit check: {limit_reason}")
                             print(f"[Bot] Message received and processed, but reply blocked by rate limit.")
                             # Still update analytics for received message
                             continue
@@ -701,7 +701,7 @@ def run_bot():
                                     record_response()
                                     continue
                             except Exception as e:
-                                print(f"[Bot] ⚠️  Memory retrieval error: {e}")
+                                print(f"[Bot] [WARNING] Memory retrieval error: {e}")
                                 import traceback
                                 traceback.print_exc()
                         
@@ -714,7 +714,7 @@ def run_bot():
                         is_email_query = any(keyword in text_lower for keyword in email_keywords)
                         
                         if is_meeting_query or is_email_query:
-                            print(f"[Bot] 📅 Detected meeting/email query, checking Gmail/Calendar...")
+                            print(f"[Bot]  Detected meeting/email query, checking Gmail/Calendar...")
                             import threading
                             def check_meetings_async():
                                 try:
@@ -732,10 +732,10 @@ def run_bot():
                                     record_message_sent()
                                     record_response()
                                 except Exception as e:
-                                    print(f"[Bot] ❌ Error checking meetings/emails: {e}")
+                                    print(f"[Bot] [ERROR] Error checking meetings/emails: {e}")
                                     import traceback
                                     traceback.print_exc()
-                                    error_msg = "❌ Error checking meetings/emails. Please try again later."
+                                    error_msg = "[ERROR] Error checking meetings/emails. Please try again later."
                                     send_message(int(chat_id), error_msg)
                                     from messaging_rules import should_separate_from_conversation
                                     if not should_separate_from_conversation(error_msg):
@@ -743,7 +743,7 @@ def run_bot():
                             
                             thread = threading.Thread(target=check_meetings_async, daemon=True)
                             thread.start()
-                            status_msg = "🔍 Checking your meetings and emails... I'll send the results shortly."
+                            status_msg = " Checking your meetings and emails... I'll send the results shortly."
                             send_message(int(chat_id), status_msg)
                             from messaging_rules import should_separate_from_conversation
                             if not should_separate_from_conversation(status_msg):
@@ -790,10 +790,10 @@ def run_bot():
                             is_pure_query = any(pattern in text_lower for pattern in pure_query_patterns)
                             if is_pure_query and not any(word in text_lower for word in ["for me", "me", "my", "please", "can you", "could you", "would you"]):
                                 is_actionable = False
-                                print(f"[Bot] 🔍 Detected pure query about action, not actionable request")
+                                print(f"[Bot]  Detected pure query about action, not actionable request")
                         
                         if is_actionable:
-                            print(f"[Bot] 🤖 Detected actionable request, processing with multi-agent system...")
+                            print(f"[Bot]  Detected actionable request, processing with multi-agent system...")
                             try:
                                 agent_result = process_user_request(text, str(chat_id), sender, ai_client)
                                 
@@ -804,10 +804,10 @@ def run_bot():
                                 #     print(f"[Bot] 🔐 Permission required for contact access")
                                 if agent_result and agent_result.get("success"):
                                     # Action executed successfully
-                                    reply_text = f"✅ {agent_result.get('message', 'Action completed')}"
+                                    reply_text = f"[OK] {agent_result.get('message', 'Action completed')}"
                                     if agent_result.get("sent_message"):
                                         reply_text += f"\n\nSent: {agent_result.get('sent_message', '')[:100]}..."
-                                    print(f"[Bot] ✅ Agent action successful: {agent_result.get('action')} with {agent_result.get('contact')}")
+                                    print(f"[Bot] [OK] Agent action successful: {agent_result.get('action')} with {agent_result.get('contact')}")
                                     
                                     send_message(int(chat_id), reply_text)
                                     log_action("message_sent", {
@@ -834,8 +834,8 @@ def run_bot():
                                         "original_request": text
                                     })
                                     
-                                    reply_text = f"✅ I found '{contact_name}' in your contacts. Should I proceed with {action_type}? (Reply 'yes' to continue)"
-                                    print(f"[Bot] ⚠️  Agent action needs confirmation: {agent_result.get('message')}")
+                                    reply_text = f"[OK] I found '{contact_name}' in your contacts. Should I proceed with {action_type}? (Reply 'yes' to continue)"
+                                    print(f"[Bot] [WARNING] Agent action needs confirmation: {agent_result.get('message')}")
                                     
                                     send_message(int(chat_id), reply_text)
                                     log_action("message_sent", {
@@ -851,11 +851,11 @@ def run_bot():
                                     continue
                                 else:
                                     # Action failed or no contact found - fall through to normal response
-                                    print(f"[Bot] ⚠️  Agent action failed or no contact found, using normal AI response")
+                                    print(f"[Bot] [WARNING] Agent action failed or no contact found, using normal AI response")
                                     agent_result = None  # Reset to allow normal response
                                 
                             except Exception as e:
-                                print(f"[Bot] ⚠️  Agent system error: {e}, falling back to normal response")
+                                print(f"[Bot] [WARNING] Agent system error: {e}, falling back to normal response")
                                 import traceback
                                 traceback.print_exc()
                                 agent_result = None  # Reset on error to allow normal response
@@ -867,10 +867,10 @@ def run_bot():
                             # Only skip if action was successful OR needs confirmation (both cases send a response)
                             if agent_result.get("success") or agent_result.get("needs_confirmation"):
                                 should_skip_response = True
-                                print(f"[Bot] ⏭️  Skipping normal AI response - actionable request already handled")
+                                print(f"[Bot]   Skipping normal AI response - actionable request already handled")
                         
                         if not should_skip_response:
-                            print(f"[Bot] 💬 Generating normal AI response...")
+                            print(f"[Bot]  Generating normal AI response...")
                             reply_text = generate_response(text, str(chat_id), sender, analysis, ai_client)
                             
                             # =========================
@@ -878,7 +878,7 @@ def run_bot():
                             # =========================
                             response_validation = validate_response(reply_text, ai_client)
                             if not response_validation.get("valid", True):
-                                print(f"[Bot] 🚫 Response validation failed: {response_validation.get('message', 'unknown')}")
+                                print(f"[Bot] [BLOCKED] Response validation failed: {response_validation.get('message', 'unknown')}")
                                 # Generate a safe fallback response
                                 reply_text = "I apologize, but I'm unable to provide a response to that. How else can I help you?"
                             
@@ -889,20 +889,20 @@ def run_bot():
                             
                             record_message_sent()  # Track for rate limiting
                             record_response()
-                            print(f"[Bot] ✅ Sent AI reply: {reply_text}")
+                            print(f"[Bot] [OK] Sent AI reply: {reply_text}")
                         
                         # Mark this message as fully processed to prevent duplicate responses
                         processed_messages.add(message_key)
                         
                         # Log conversation summary
                         summary = get_conversation_summary(str(chat_id))
-                        print(f"[Bot] 📊 Conversation summary: {summary['message_count']} messages, {len(summary['participants'])} participants")
+                        print(f"[Bot]  Conversation summary: {summary['message_count']} messages, {len(summary['participants'])} participants")
                         
                         # Special handling for summary requests
                         if "summary" in text.lower() or "summarize" in text.lower():
                             summary = generate_summary(str(chat_id), ai_client)
                             send_message(int(chat_id), f"📋 Conversation Summary: {summary}")
-                            print(f"[Bot] ✅ Sent summary for chat {chat_id}")
+                            print(f"[Bot] [OK] Sent summary for chat {chat_id}")
                         
                         # Print analytics every 5 messages
                         if message_count % 5 == 0:
@@ -911,13 +911,13 @@ def run_bot():
                     except Exception as e:
                         error_msg = str(e)
                         if "Rate limit" in error_msg or "429" in error_msg:
-                            print(f"[Bot] ⚠️  RATE LIMIT HIT! Message received but cannot reply.")
+                            print(f"[Bot] [WARNING] RATE LIMIT HIT! Message received but cannot reply.")
                             print(f"[Bot] This might be due to organizer-set limits. Message was still processed.")
                         elif "Quota" in error_msg or "403" in error_msg:
-                            print(f"[Bot] ⚠️  QUOTA EXCEEDED! Message received but cannot reply.")
+                            print(f"[Bot] [WARNING] QUOTA EXCEEDED! Message received but cannot reply.")
                             print(f"[Bot] Check if you've hit the message limit set by organizers.")
                         else:
-                            print(f"[Bot] ❌ Failed to send reply: {e}")
+                            print(f"[Bot] [ERROR] Failed to send reply: {e}")
                         import traceback
                         traceback.print_exc()
 

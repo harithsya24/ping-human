@@ -14,11 +14,11 @@ message_timestamps: Dict[str, List[datetime]] = defaultdict(list)
 def add_message(chat_id: str, sender: str, text: str, message_id: Optional[str] = None, is_bot: bool = False):
     """Add a message to conversation thread. STRICT: Only stores clean JSON data, no hallucination."""
     if not text or not isinstance(text, str):
-        print(f"[ConversationTracker] ⚠️  Skipping invalid message: missing or invalid text")
+        print(f"[ConversationTracker] [WARNING] Skipping invalid message: missing or invalid text")
         return
     
     if should_separate_from_conversation(text):
-        print(f"[ConversationTracker] ⚠️  Skipping reminder/email message (kept separate from conversation logs): {text[:50]}...")
+        print(f"[ConversationTracker] [WARNING] Skipping reminder/email message (kept separate from conversation logs): {text[:50]}...")
         return
     
     if chat_id not in conversation_threads:
@@ -33,7 +33,7 @@ def add_message(chat_id: str, sender: str, text: str, message_id: Optional[str] 
     }
     
     if not validate_message_storage(message_entry):
-        print(f"[ConversationTracker] ⚠️  Skipping invalid message data (validation failed)")
+        print(f"[ConversationTracker] [WARNING] Skipping invalid message data (validation failed)")
         return
     
     conversation_threads[chat_id].append(message_entry)

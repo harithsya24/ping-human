@@ -236,12 +236,12 @@ def sync_macos_contacts_to_cache():
             })
             synced_count += 1
     
-    print(f"[macOS Contacts] ✅ Synced {synced_count} contacts from macOS Contacts app")
+    print(f"[macOS Contacts] [OK] Synced {synced_count} contacts from macOS Contacts app")
     return synced_count
 
 if __name__ == "__main__":
     print("=" * 70)
-    print("📱 macOS Contacts Access")
+    print(" macOS Contacts Access")
     print("=" * 70)
     
     contacts = get_contacts_simple()

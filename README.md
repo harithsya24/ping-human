@@ -42,13 +42,15 @@ PingHumans is an intelligent messaging bot that leverages the **Series iMessage 
 ### 🤖 AI & Natural Language Processing
 
 - **LLM-Powered Responses** - Context-aware replies using OpenAI GPT-4o-mini
+- **General Knowledge Support** - Uses general knowledge to answer questions, not limited to conversation history
 - **Long Context Awareness** - Maintains conversation history up to 200 messages
-- **Few-Shot Learning** - Uses conversation history as examples for better responses
+- **Context-Aware Responses** - Uses conversation history for context while leveraging general knowledge
 - **Topic Adherence** - Stays on topic, understands context (e.g., "hospital in NYC" = hospitals, not tourism)
 - **Conversation Summarization** - AI-generated summaries of long conversations
 - **Intent Detection** - Identifies user intent (question, complaint, request, greeting, etc.)
 - **Sentiment Analysis** - Analyzes message sentiment (positive, neutral, negative)
 - **Urgency Detection** - Identifies urgent messages requiring immediate attention
+- **Realistic Responses** - Provides helpful, realistic answers to general knowledge questions
 
 ### 🌍 Multilingual Support
 
@@ -62,16 +64,18 @@ PingHumans is an intelligent messaging bot that leverages the **Series iMessage 
 
 - **Smart Contact Matching** - AI-powered contact search and matching
 - **Contact-Based Actions**:
-  - **Order** - "Order pizza" → finds "Pizza Guy" → sends order message
-  - **Book** - "Book appointment" → matches contact → schedules
+  - **Order** - "Order pizza" → finds "Pizza Guy" → asks for confirmation → collects details (flavor, size, address) → sends order message
   - **Call** - "Call doctor" → finds contact → initiates call
-  - **Message** - "Message mom" → finds contact → sends message
-  - **Email** - "Email client" → finds contact → sends email
+  - **Send/Message** - "Send message to mom" → finds contact → sends message
 - **macOS Contacts Integration** - Syncs contacts from macOS Contacts app
 - **Contact Extraction** - Automatically extracts contacts from iMessage `chat_handles`
-- **Contact Caching** - Efficient in-memory contact cache
+- **Contact Caching** - Efficient JSON-based contact cache (`contacts_cache.json`)
+- **Contact Persistence** - Contacts saved to JSON for fast loading and caching (prevents data loss on restart)
+- **Contact Merging** - Safely merges new contacts with existing cache without overwriting
 - **Contact Suggestions** - Provides suggestions when exact match not found
 - **Permission Management** - Secure permission system for contact access
+- **User Contact Info** - Stores and retrieves user's own contact information
+- **Order History** - Tracks recent orders per contact in contact metadata
 
 ### 📧 Email & Calendar Integration
 
@@ -109,7 +113,10 @@ PingHumans is an intelligent messaging bot that leverages the **Series iMessage 
   - Language statistics
   - Intent analysis
   - Per-user analytics
-- **Recent Activity** - Shows top 5 most recent conversations
+- **Recent Activity** - Shows recent actions (orders, messages sent, calls, etc.) with expandable details
+- **Action History** - Tracks all actions (order_placed, message_sent, booking_created, reminder_sent, ai_action, error)
+- **Action Status** - Shows success/failed/pending/error status for each action with color-coded indicators
+- **Action Details** - Click on any action to see full details (message content, contact info, timestamps)
 - **Rate Limit Status** - Displays current API quota status
 - **Guardrail Statistics** - Shows safety and moderation stats
 - **File-Based Persistence** - Analytics stored in `analytics_data.json`
@@ -133,13 +140,20 @@ PingHumans is an intelligent messaging bot that leverages the **Series iMessage 
 
 ### 🔧 Technical Features
 
-- **Modular Architecture** - 29 Python modules in `backend/` directory
+- **Modular Architecture** - 40+ Python modules in `backend/` directory
 - **REST API** - 20+ endpoints for analytics, contacts, conversations, agents
-- **Error Handling** - Robust error handling throughout
+- **Error Handling** - Robust error handling throughout with clear error messages
 - **Auto-Reconnect** - Automatically reconnects if Kafka connection is lost
-- **Multi-Step Actions** - Handles confirmations and detail collection
+- **Multi-Step Actions** - Handles confirmations and detail collection (order flow: confirmation → details → address → send)
 - **Thread-Safe Operations** - Safe concurrent access to shared data
-- **Data Persistence** - File-based storage for analytics, permissions, pending actions
+- **Data Persistence** - File-based storage for analytics, permissions, pending actions, contacts, user preferences
+- **Location Handling** - Extracts and processes live location data from iMessage messages
+- **Reverse Geocoding** - Converts location coordinates to addresses using OpenStreetMap Nominatim API
+- **User Preferences** - Stores user-specific data like home/work addresses (`user_preferences.json`)
+- **Address Management** - Save and retrieve addresses by keywords (home, work, etc.)
+- **Duplicate Message Detection** - Prevents processing the same Kafka event multiple times using message keys
+- **Action Logging** - Comprehensive action history tracking for all operations (`action_history.json`)
+- **Clean Logging** - Text-based log messages without emojis for better compatibility
 
 ---
 
@@ -183,7 +197,11 @@ ping-human/
 ├── env.example                # Environment variables template
 ├── start_bot.sh              # Start bot service script
 ├── start_backend.sh          # Start API server script
-└── start_all.sh              # Start both services script
+├── start_all.sh              # Start both services script
+├── open_frontend.sh          # Start backend and open frontend dashboard
+├── contacts_cache.json        # Cached contacts (auto-generated)
+├── user_preferences.json      # User preferences (addresses, etc.)
+└── action_history.json       # Action history log
 ```
 
 ---
@@ -250,7 +268,9 @@ python3 backend/app.py
 
 **Open Dashboard:**
 - Navigate to `http://localhost:5001` in your browser
+- Or use: `./open_frontend.sh` (starts backend server and opens dashboard automatically)
 - Dashboard auto-refreshes every 5 seconds
+- If backend isn't running, the script will start it for you
 
 ---
 
@@ -264,6 +284,7 @@ python3 backend/app.py
 - `GET /api/analytics` - Full analytics data
 - `GET /api/conversations` - All conversation histories
 - `GET /api/conversations/<chat_id>` - Specific conversation
+- `GET /api/actions` - Get action history (supports `limit` and `type` query params)
 
 ### Series Integration
 - `GET /api/users/<user_id>/connections` - Get user connections from Series API
@@ -305,12 +326,24 @@ Send a message to your configured `SENDER_NUMBER` and the bot will:
 ### Contact-Based Actions
 ```
 User: "Order pizza"
-Bot: "✅ I found 'Pizza Guy' in your contacts. Should I proceed with order? (Reply 'yes' to continue)"
+Bot: "[OK] I found 'Pizza Guy' in your contacts. Should I proceed with order? (Reply 'yes' to continue)"
 User: "Yes"
-Bot: "What would you like to order?"
+Bot: "Please provide order details:
+• What flavor/type would you like? (e.g., margherita, pepperoni)
+• Size/quantity?
+• Any special instructions?"
 User: "2 large margherita pizzas"
-Bot: "✅ Order sent to Pizza Guy! 📨 Message sent: [order details]"
+Bot: "[LOCATION] Where should I deliver? (Say 'home' to use saved address, or provide address)"
+User: "home"
+Bot: "[OK] Order sent to Pizza Guy! [Complete order message with delivery address]"
 ```
+
+### Location Support
+- **Live Location** - Share your live location in iMessage and it will be automatically converted to an address
+- **Address Storage** - Save home/work addresses for quick access (e.g., "520 W 25th ST NYC")
+- **Address Extraction** - Automatically extracts addresses from messages
+- **Location in Order Flow** - If you share location during order, it's automatically used as delivery address
+- **Reverse Geocoding** - Converts GPS coordinates to readable street addresses
 
 ### Meeting Queries
 ```

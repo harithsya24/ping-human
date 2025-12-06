@@ -9,7 +9,7 @@ try:
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
-    print("[LocationHandler] ⚠️  requests library not available. Install with: pip install requests")
+    print("[LocationHandler] [WARNING] requests library not available. Install with: pip install requests")
 
 def extract_location_from_message(data: Dict) -> Optional[Dict]:
     """Extract location data from message event data.
@@ -90,7 +90,7 @@ def extract_location_from_message(data: Dict) -> Optional[Dict]:
                     "address": location_data.get("address") or location_data.get("display_name")
                 }
             except (ValueError, TypeError):
-                print(f"[LocationHandler] ⚠️  Invalid location coordinates: lat={lat}, lng={lng}")
+                print(f"[LocationHandler] [WARNING] Invalid location coordinates: lat={lat}, lng={lng}")
                 return None
     
     return None
@@ -101,7 +101,7 @@ def reverse_geocode(latitude: float, longitude: float) -> Optional[str]:
     Uses OpenStreetMap Nominatim API (free, no API key required).
     """
     if not REQUESTS_AVAILABLE:
-        print("[LocationHandler] ⚠️  Cannot reverse geocode - requests library not available")
+        print("[LocationHandler] [WARNING] Cannot reverse geocode - requests library not available")
         return None
     
     try:
@@ -123,17 +123,17 @@ def reverse_geocode(latitude: float, longitude: float) -> Optional[str]:
             data = response.json()
             address = data.get("display_name")
             if address:
-                print(f"[LocationHandler] ✅ Reverse geocoded: {latitude}, {longitude} → {address}")
+                print(f"[LocationHandler] [OK] Reverse geocoded: {latitude}, {longitude} → {address}")
                 return address
             else:
-                print(f"[LocationHandler] ⚠️  No address found in geocoding response")
+                print(f"[LocationHandler] [WARNING] No address found in geocoding response")
                 return None
         else:
-            print(f"[LocationHandler] ⚠️  Geocoding API error: {response.status_code}")
+            print(f"[LocationHandler] [WARNING] Geocoding API error: {response.status_code}")
             return None
             
     except Exception as e:
-        print(f"[LocationHandler] ⚠️  Error reverse geocoding: {e}")
+        print(f"[LocationHandler] [WARNING] Error reverse geocoding: {e}")
         return None
 
 def process_location_message(data: Dict, save_as_home: bool = False) -> Optional[str]:

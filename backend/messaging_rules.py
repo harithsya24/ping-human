@@ -58,7 +58,7 @@ def is_reminder_message(message: str) -> bool:
     """Check if a message is a reminder (should be kept separate from conversation logs)."""
     reminder_indicators = [
         "reminder", "meeting", "appointment", "urgent email", "alert",
-        "📅", "🚨", "⏰", "📆", "🔔"
+        "", "🚨", "", "📆", "🔔"
     ]
     message_lower = message.lower()
     return any(indicator in message_lower for indicator in reminder_indicators)

@@ -68,7 +68,7 @@ class ReminderScheduler:
                         "message": message,
                         "success": True
                     })
-                    print(f"[ReminderScheduler] ✅ Reminder sent to chat {REMINDER_CHAT_ID}")
+                    print(f"[ReminderScheduler] [OK] Reminder sent to chat {REMINDER_CHAT_ID}")
                 else:
                     recipient = RECIPIENT_NUMBER
                     if not recipient.startswith("+"):
@@ -90,7 +90,7 @@ class ReminderScheduler:
                         "success": True,
                         "proactive": True
                     })
-                    print(f"[ReminderScheduler] ✅ Reminder sent to {recipient}")
+                    print(f"[ReminderScheduler] [OK] Reminder sent to {recipient}")
             except Exception as e:
                 log_action("reminder_sent", {
                     "type": "meeting",
@@ -99,7 +99,7 @@ class ReminderScheduler:
                     "success": False,
                     "error": str(e)
                 })
-                print(f"[ReminderScheduler] ❌ Error sending reminder: {e}")
+                print(f"[ReminderScheduler] [ERROR] Error sending reminder: {e}")
                 import traceback
                 traceback.print_exc()
     
@@ -124,16 +124,16 @@ class ReminderScheduler:
                     self.send_reminder(message, meeting_id, reminder_type="meeting")
                     
                     self.sent_reminders.add(reminder_key)
-                    print(f"[ReminderScheduler] 📅 Reminder sent for meeting: {reminder.get('title')}")
+                    print(f"[ReminderScheduler]  Reminder sent for meeting: {reminder.get('title')}")
             
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(check_reminders)
                 future.result(timeout=90)
         
         except FutureTimeoutError:
-            print(f"[ReminderScheduler] ⚠️  Meeting reminder check timed out (90s), skipping this cycle")
+            print(f"[ReminderScheduler] [WARNING] Meeting reminder check timed out (90s), skipping this cycle")
         except Exception as e:
-            print(f"[ReminderScheduler] ❌ Error checking meeting reminders: {e}")
+            print(f"[ReminderScheduler] [ERROR] Error checking meeting reminders: {e}")
             import traceback
             traceback.print_exc()
     
@@ -174,8 +174,8 @@ class ReminderScheduler:
                     message = f"🚨 Urgent Email Alert\n\n"
                     message += f"📧 From: {sender}\n"
                     message += f"📌 Subject: {subject}\n"
-                    message += f"💬 Preview: {snippet}...\n\n"
-                    message += f"⚠️ {urgency_reason}"
+                    message += f" Preview: {snippet}...\n\n"
+                    message += f"[WARNING] {urgency_reason}"
                     
                     self.send_reminder(message, email_id, reminder_type="urgent_email")
                     
@@ -202,15 +202,15 @@ class ReminderScheduler:
                 future.result(timeout=20)
         
         except FutureTimeoutError:
-            print(f"[ReminderScheduler] ⚠️  Urgent email check timed out (20s), skipping this cycle")
+            print(f"[ReminderScheduler] [WARNING] Urgent email check timed out (20s), skipping this cycle")
         except Exception as e:
-            print(f"[ReminderScheduler] ❌ Error checking urgent emails: {e}")
+            print(f"[ReminderScheduler] [ERROR] Error checking urgent emails: {e}")
             import traceback
             traceback.print_exc()
     
     def run_loop(self):
         """Main loop for checking reminders (non-blocking, error-resilient)."""
-        print("[ReminderScheduler] 🚀 Starting reminder scheduler...")
+        print("[ReminderScheduler]  Starting reminder scheduler...")
         self.running = True
         
         while self.running:
@@ -218,7 +218,7 @@ class ReminderScheduler:
                 try:
                     self.check_meeting_reminders()
                 except Exception as e:
-                    print(f"[ReminderScheduler] ⚠️  Meeting reminder check failed (non-blocking): {e}")
+                    print(f"[ReminderScheduler] [WARNING] Meeting reminder check failed (non-blocking): {e}")
                 
                 now = datetime.now()
                 if not self.last_urgent_check or (now - self.last_urgent_check).total_seconds() >= 300:
@@ -226,7 +226,7 @@ class ReminderScheduler:
                         self.check_urgent_emails(self.ai_client)
                         self.last_urgent_check = now
                     except Exception as e:
-                        print(f"[ReminderScheduler] ⚠️  Urgent email check failed (non-blocking): {e}")
+                        print(f"[ReminderScheduler] [WARNING] Urgent email check failed (non-blocking): {e}")
                         self.last_urgent_check = now
                 
                 time.sleep(60)
@@ -235,7 +235,7 @@ class ReminderScheduler:
                 print("[ReminderScheduler] Stopping reminder scheduler...")
                 break
             except Exception as e:
-                print(f"[ReminderScheduler] ❌ Error in reminder loop (will retry): {e}")
+                print(f"[ReminderScheduler] [ERROR] Error in reminder loop (will retry): {e}")
                 import traceback
                 traceback.print_exc()
                 time.sleep(60)
@@ -248,7 +248,7 @@ class ReminderScheduler:
         
         self.thread = threading.Thread(target=self.run_loop, daemon=True)
         self.thread.start()
-        print("[ReminderScheduler] ✅ Started in background thread")
+        print("[ReminderScheduler] [OK] Started in background thread")
     
     def stop(self):
         """Stop the reminder scheduler."""

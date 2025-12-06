@@ -47,12 +47,12 @@ def _load_contacts_from_json():
                     if phone not in contact_phone_map:
                         contact_phone_map[phone] = name
                 
-                print(f"[Contacts] ✅ Loaded {len(loaded_contacts)} contacts from {CONTACTS_JSON_FILE} (merged {merged_count} new contacts)")
+                print(f"[Contacts] [OK] Loaded {len(loaded_contacts)} contacts from {CONTACTS_JSON_FILE} (merged {merged_count} new contacts)")
         except Exception as e:
-            print(f"[Contacts] ⚠️  Error loading contacts from JSON: {e}")
+            print(f"[Contacts] [WARNING] Error loading contacts from JSON: {e}")
             # Don't clear existing cache on error
     else:
-        print(f"[Contacts] ℹ️  No contacts cache file found, starting fresh")
+        print(f"[Contacts] [INFO] No contacts cache file found, starting fresh")
 
 def _save_contacts_to_json():
     """Save contacts to JSON file for persistence."""
@@ -65,9 +65,9 @@ def _save_contacts_to_json():
         }
         with open(CONTACTS_JSON_FILE, 'w') as f:
             json.dump(data, f, indent=2)
-        print(f"[Contacts] 💾 Saved {len(contacts_cache)} contacts to {CONTACTS_JSON_FILE}")
+        print(f"[Contacts]  Saved {len(contacts_cache)} contacts to {CONTACTS_JSON_FILE}")
     except Exception as e:
-        print(f"[Contacts] ⚠️  Error saving contacts to JSON: {e}")
+        print(f"[Contacts] [WARNING] Error saving contacts to JSON: {e}")
 
 # Load contacts on module import
 _load_contacts_from_json()
@@ -184,7 +184,7 @@ def sync_from_macos_contacts(force: bool = False) -> int:
     """
     # If cache exists and force=False, skip syncing
     if not force and os.path.exists(CONTACTS_JSON_FILE) and len(contacts_cache) > 0:
-        print(f"[Contacts] ℹ️  Contacts cache already exists with {len(contacts_cache)} contacts. Skipping macOS sync. (Use force=True to re-sync)")
+        print(f"[Contacts] [INFO] Contacts cache already exists with {len(contacts_cache)} contacts. Skipping macOS sync. (Use force=True to re-sync)")
         return len(contacts_cache)
     
     try:
@@ -235,7 +235,7 @@ def save_user_contact_info(name: str, phone: str, email: str = "", additional_in
     # Save to JSON
     _save_contacts_to_json()
     
-    print(f"[Contacts] ✅ Saved user contact info: {name} ({phone or sender_number})")
+    print(f"[Contacts] [OK] Saved user contact info: {name} ({phone or sender_number})")
     return user_contact
 
 def get_contact_for_reply(phone: str) -> dict:

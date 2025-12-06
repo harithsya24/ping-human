@@ -33,7 +33,7 @@ def _load_preferences() -> Dict:
                     merged["addresses"] = DEFAULT_PREFERENCES["addresses"].copy()
                 return merged
         except Exception as e:
-            print(f"[UserPreferences] ⚠️  Error loading preferences: {e}")
+            print(f"[UserPreferences] [WARNING] Error loading preferences: {e}")
             return DEFAULT_PREFERENCES.copy()
     return DEFAULT_PREFERENCES.copy()
 
@@ -43,9 +43,9 @@ def _save_preferences(prefs: Dict):
         prefs["last_updated"] = datetime.now().isoformat()
         with open(USER_PREFERENCES_FILE, 'w') as f:
             json.dump(prefs, f, indent=2)
-        print(f"[UserPreferences] 💾 Saved user preferences")
+        print(f"[UserPreferences]  Saved user preferences")
     except Exception as e:
-        print(f"[UserPreferences] ⚠️  Error saving preferences: {e}")
+        print(f"[UserPreferences] [WARNING] Error saving preferences: {e}")
 
 def get_home_address() -> Optional[str]:
     """Get user's home address."""
@@ -59,7 +59,7 @@ def set_home_address(address: str):
         prefs["addresses"] = {}
     prefs["addresses"]["home"] = address
     _save_preferences(prefs)
-    print(f"[UserPreferences] ✅ Home address saved")
+    print(f"[UserPreferences] [OK] Home address saved")
 
 def get_address_for_keyword(keyword: str) -> Optional[str]:
     """Get address for a keyword (home, work, etc.)."""

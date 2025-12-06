@@ -103,7 +103,7 @@ def get_icalendar_events(days_ahead: int = 14) -> List[Dict]:
         # Sort by start time
         events.sort(key=lambda x: x.get('start', ''))
         
-        print(f"[iCalendar] ✅ Found {len(events)} events from macOS Calendar")
+        print(f"[iCalendar] [OK] Found {len(events)} events from macOS Calendar")
         return events
     
     except subprocess.TimeoutExpired:

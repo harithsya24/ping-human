@@ -201,7 +201,7 @@ def format_memory_response(results: List[Dict], query_type: str) -> str:
             chat_id = result.get("chat_id", "Unknown")
             date = result.get("date", "Unknown")
             messages = result.get("messages", [])
-            response_parts.append(f"📅 On {date} in conversation {chat_id} ({len(messages)} messages):")
+            response_parts.append(f" On {date} in conversation {chat_id} ({len(messages)} messages):")
             for msg in messages[:5]:
                 text = msg.get("text", "")
                 is_bot = msg.get("is_bot", False)
@@ -211,7 +211,7 @@ def format_memory_response(results: List[Dict], query_type: str) -> str:
                 response_parts.append(f"  ... and {len(messages) - 5} more messages")
     
     elif query_type == "user_messages":
-        response_parts.append(f"📝 Your messages ({len(results)} found):")
+        response_parts.append(f" Your messages ({len(results)} found):")
         for msg in results[:10]:
             text = msg.get("text", "")
             timestamp = msg.get("timestamp", "")
@@ -224,7 +224,7 @@ def format_memory_response(results: List[Dict], query_type: str) -> str:
             chat_id = result.get("chat_id", "Unknown")
             keyword = result.get("keyword", "")
             messages = result.get("messages", [])
-            response_parts.append(f"🔍 Found '{keyword}' in conversation {chat_id} ({len(messages)} matches):")
+            response_parts.append(f" Found '{keyword}' in conversation {chat_id} ({len(messages)} matches):")
             for msg in messages[:5]:
                 text = msg.get("text", "")
                 is_bot = msg.get("is_bot", False)

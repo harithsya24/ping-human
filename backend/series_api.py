@@ -44,7 +44,7 @@ def create_chat(phone_numbers: list, message_text: str, display_name: str = None
     
     if enforce_recipient:
         phone_numbers = enforce_recipient_rule(phone_numbers)
-        print(f"[API] ⚠️  Enforcing recipient rule: Only sending to {get_allowed_recipient()}")
+        print(f"[API] [WARNING] Enforcing recipient rule: Only sending to {get_allowed_recipient()}")
     
     cleaned_phones = []
     for phone in phone_numbers:
@@ -60,7 +60,7 @@ def create_chat(phone_numbers: list, message_text: str, display_name: str = None
         allowed = get_allowed_recipient()
         if allowed not in cleaned_phones:
             cleaned_phones = [allowed]
-            print(f"[API] ⚠️  Phone number not allowed, using only allowed recipient: {allowed}")
+            print(f"[API] [WARNING] Phone number not allowed, using only allowed recipient: {allowed}")
     
     payload = {
         "send_from": sender,
@@ -93,7 +93,7 @@ def create_chat(phone_numbers: list, message_text: str, display_name: str = None
     
     chat_id_from_response = response.get("chat_id") or response.get("data", {}).get("chat_id")
     if not chat_id_from_response:
-        print(f"[API] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
+        print(f"[API] [WARNING] Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
     
     return response
 

@@ -14,7 +14,7 @@ def list_all_contacts():
     contacts = get_all_contacts()
     
     print("=" * 70)
-    print("📱 ALL CONTACTS - DETAILED LIST")
+    print(" ALL CONTACTS - DETAILED LIST")
     print("=" * 70)
     print(f"Total contacts: {len(contacts)}\n")
     

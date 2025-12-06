@@ -79,7 +79,7 @@ def request_contact_permission(chat_id: str, user_phone: str) -> Dict:
     return {
         "granted": False,
         "requested": True,
-        "message": "📱 iPhone Contact Access Required\n\nI need permission to use your iPhone contacts to help with actions like:\n• Ordering (pizza, food, etc.)\n• Booking (hotels, appointments)\n• Calling contacts\n• Finding services\n\nYour contacts are extracted from iMessage data. Reply 'yes' or 'allow' to grant access."
+        "message": " iPhone Contact Access Required\n\nI need permission to use your iPhone contacts to help with actions like:\n• Ordering (pizza, food, etc.)\n• Booking (hotels, appointments)\n• Calling contacts\n• Finding services\n\nYour contacts are extracted from iMessage data. Reply 'yes' or 'allow' to grant access."
     }
 
 def grant_contact_permission(chat_id: str, user_phone: str) -> Dict:
@@ -92,7 +92,7 @@ def grant_contact_permission(chat_id: str, user_phone: str) -> Dict:
     
     return {
         "granted": True,
-        "message": "✅ Contact access granted!"
+        "message": "[OK] Contact access granted!"
     }
 
 def deny_contact_permission(chat_id: str, user_phone: str) -> Dict:

@@ -137,7 +137,7 @@ def check_and_create_system_notifications() -> List[Dict]:
         
         if health_status == "unhealthy" or health_score < 50:
             new_notifications.append(create_notification(
-                title="⚠️ System Health Alert",
+                title="[WARNING] System Health Alert",
                 message=f"System health is {health_status} (score: {health_score}/100). Review system metrics.",
                 type="warning",
                 priority="high",
@@ -174,7 +174,7 @@ def check_and_create_system_notifications() -> List[Dict]:
         
         if total_messages > 0 and total_messages % 100 == 0:
             new_notifications.append(create_notification(
-                title="📊 Milestone Reached",
+                title=" Milestone Reached",
                 message=f"Processed {total_messages} messages! Great progress.",
                 type="success",
                 priority="low",

@@ -78,7 +78,7 @@ def send_email(
             print(f"[Email] Sending email to {to_email}")
             server.send_message(msg)
         
-        print(f"[Email] ✅ Email sent successfully to {to_email}")
+        print(f"[Email] [OK] Email sent successfully to {to_email}")
         return {
             "success": True,
             "message": f"Email sent to {to_email}",
@@ -88,7 +88,7 @@ def send_email(
     
     except smtplib.SMTPAuthenticationError as e:
         error_msg = f"SMTP authentication failed: {str(e)}"
-        print(f"[Email] ❌ {error_msg}")
+        print(f"[Email] [ERROR] {error_msg}")
         return {
             "success": False,
             "error": error_msg,
@@ -96,7 +96,7 @@ def send_email(
         }
     except smtplib.SMTPRecipientsRefused as e:
         error_msg = f"Recipient email rejected: {to_email}"
-        print(f"[Email] ❌ {error_msg}")
+        print(f"[Email] [ERROR] {error_msg}")
         return {
             "success": False,
             "error": error_msg,
@@ -104,7 +104,7 @@ def send_email(
         }
     except smtplib.SMTPServerDisconnected as e:
         error_msg = f"SMTP server disconnected: {str(e)}"
-        print(f"[Email] ❌ {error_msg}")
+        print(f"[Email] [ERROR] {error_msg}")
         return {
             "success": False,
             "error": error_msg,
@@ -112,7 +112,7 @@ def send_email(
         }
     except Exception as e:
         error_msg = f"Failed to send email: {str(e)}"
-        print(f"[Email] ❌ {error_msg}")
+        print(f"[Email] [ERROR] {error_msg}")
         import traceback
         print(f"[Email] Traceback: {traceback.format_exc()}")
         return {

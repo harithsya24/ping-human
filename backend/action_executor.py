@@ -102,7 +102,7 @@ def _execute_order(request: str, contact: Dict, chat_id: str, ai_client: Optiona
         contact = cached_contact
         contact_name = contact.get("name") or contact.get("display_name", "Unknown")
         contact_phone = contact.get("phone_number") or contact_phone
-        print(f"[ActionExecutor] ✅ Using contact from cache: {contact_name}")
+        print(f"[ActionExecutor] [OK] Using contact from cache: {contact_name}")
     
     print(f"[ActionExecutor] _execute_order called")
     print(f"[ActionExecutor] Contact name: {contact_name}")
@@ -190,8 +190,8 @@ def _execute_order(request: str, contact: Dict, chat_id: str, ai_client: Optiona
     
     print(f"[ActionExecutor] 📞 Sending order to {contact_name}")
     print(f"[ActionExecutor] 📞 Phone number: {phone_clean}")
-    print(f"[ActionExecutor] 📝 Order message: {message_text[:150]}...")
-    print(f"[ActionExecutor] 📝 Full message: {message_text}")
+    print(f"[ActionExecutor]  Order message: {message_text[:150]}...")
+    print(f"[ActionExecutor]  Full message: {message_text}")
     
     # Create new chat with the contact's phone number
     # This will create a chat between the bot (sender) and the contact
@@ -216,14 +216,14 @@ def _execute_order(request: str, contact: Dict, chat_id: str, ai_client: Optiona
             enforce_recipient=False  # Don't enforce - use actual contact number
         )
         
-        print(f"[ActionExecutor] ✅ API Response received")
-        print(f"[ActionExecutor] ✅ Response data: {json.dumps(response, indent=2)}")
+        print(f"[ActionExecutor] [OK] API Response received")
+        print(f"[ActionExecutor] [OK] Response data: {json.dumps(response, indent=2)}")
         
         new_chat_id = response.get("chat_id") or response.get("data", {}).get("chat_id")
         if not new_chat_id:
-            print(f"[ActionExecutor] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
+            print(f"[ActionExecutor] [WARNING] Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
         
-        print(f"[ActionExecutor] ✅ Order sent successfully! Chat ID: {new_chat_id}")
+        print(f"[ActionExecutor] [OK] Order sent successfully! Chat ID: {new_chat_id}")
         
         # Log action for dashboard
         log_action("order", {
@@ -264,9 +264,9 @@ def _execute_order(request: str, contact: Dict, chat_id: str, ai_client: Optiona
                 "metadata": current_metadata,
                 "last_order": datetime.now().isoformat()
             })
-            print(f"[ActionExecutor] 📝 Order event tracked in contact metadata")
+            print(f"[ActionExecutor]  Order event tracked in contact metadata")
         except Exception as e:
-            print(f"[ActionExecutor] ⚠️  Error tracking order in metadata: {e}")
+            print(f"[ActionExecutor] [WARNING] Error tracking order in metadata: {e}")
         
         return {
             "action": "order",
@@ -279,7 +279,7 @@ def _execute_order(request: str, contact: Dict, chat_id: str, ai_client: Optiona
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        print(f"[ActionExecutor] ❌ Error sending order: {e}")
+        print(f"[ActionExecutor] [ERROR] Error sending order: {e}")
         print(f"[ActionExecutor] Error details: {error_details}")
         return {
             "action": "order",
@@ -494,7 +494,7 @@ Use the conversation history below as few-shot examples to understand:
         
         chat_id_from_response = response.get("chat_id") or response.get("data", {}).get("chat_id")
         if not chat_id_from_response:
-            print(f"[ActionExecutor] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
+            print(f"[ActionExecutor] [WARNING] Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
         
         # Track this message for follow-up scheduling
         # Use the new chat_id where message was sent, or fallback to original chat_id
@@ -518,9 +518,9 @@ Use the conversation history below as few-shot examples to understand:
                 message_text=message_text,
                 original_chat_id=str(chat_id)
             )
-            print(f"[ActionExecutor] 📝 Message tracked for follow-up scheduling")
+            print(f"[ActionExecutor]  Message tracked for follow-up scheduling")
         except Exception as e:
-            print(f"[ActionExecutor] ⚠️  Error tracking message for follow-up: {e}")
+            print(f"[ActionExecutor] [WARNING] Error tracking message for follow-up: {e}")
             # Don't fail the action if tracking fails
         
         return {
@@ -605,7 +605,7 @@ Use the conversation history below as few-shot examples to understand context an
         
         chat_id_from_response = response.get("chat_id") or response.get("data", {}).get("chat_id")
         if not chat_id_from_response:
-            print(f"[ActionExecutor] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
+            print(f"[ActionExecutor] [WARNING] Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
         
         return {
             "action": "book",
@@ -689,7 +689,7 @@ Use the conversation history below as few-shot examples to understand context an
         
         chat_id_from_response = response.get("chat_id") or response.get("data", {}).get("chat_id")
         if not chat_id_from_response:
-            print(f"[ActionExecutor] ⚠️  Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
+            print(f"[ActionExecutor] [WARNING] Warning: No chat_id in response. Response: {json.dumps(response, indent=2)}")
         
         return {
             "action": "schedule",
