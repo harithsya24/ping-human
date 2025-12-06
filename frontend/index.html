@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PingHumans Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            /* Basic but aesthetic color palette */
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary: #8b5cf6;
+            --accent: #a78bfa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255, 255, 255, 0.98);
+            --card-shadow: 0 20px 60px rgba(99, 102, 241, 0.12);
+            --card-hover: 0 30px 80px rgba(99, 102, 241, 0.18);
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-radius: 24px;
+        }
+        
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-primary);
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(129, 140, 248, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+            animation: gradientShift 15s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Header with better design */
+        .header {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            padding: 50px 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            margin-bottom: 35px;
+            text-align: center;
+            animation: fadeInDown 0.8s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, #6366f1);
+            background-size: 200% 100%;
+            animation: shimmer 3s linear infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        .header h1 {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 3.5em;
+            font-weight: 900;
+            margin-bottom: 15px;
+            letter-spacing: -2px;
+            animation: gradientText 4s ease infinite;
+        }
+        
+        @keyframes gradientText {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.3em;
+            font-weight: 400;
+            margin-bottom: 25px;
+        }
+        
+        .status-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 30px;
+            border: 2px solid rgba(99, 102, 241, 0.2);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.1);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-container:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.2);
+        }
+        
+        .status {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 15px currentColor;
+        }
+        
+        .status.online {
+            background: var(--success);
+            color: var(--success);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+            animation: pulse 2s infinite, statusGlow 3s ease-in-out infinite;
+        }
+        
+        @keyframes statusGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.8); }
+        }
+        
+        .status.offline {
+            background: var(--danger);
+            color: var(--danger);
+            animation: none;
+            box-shadow: 0 0 15px rgba(244, 63, 94, 0.5);
+        }
+        
+        /* Stats Grid with better cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 35px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 35px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.8s ease-out, float 6s ease-in-out infinite;
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            cursor: pointer;
+        }
+        
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        
+        .stat-card:hover::after {
+            opacity: 1;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        
+        .stat-card:nth-child(1) { animation-delay: 0.1s, 0s; }
+        .stat-card:nth-child(2) { animation-delay: 0.2s, 1.5s; }
+        .stat-card:nth-child(3) { animation-delay: 0.3s, 3s; }
+        .stat-card:nth-child(4) { animation-delay: 0.4s, 4.5s; }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, #6366f1);
+            background-size: 200% 100%;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s ease;
+        }
+        
+        .stat-card:hover::before {
+            transform: scaleX(1);
+            animation: shimmer 2s linear infinite;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: var(--card-hover);
+            background: rgba(255, 255, 255, 0.98);
+        }
+        
+        .stat-card h3 {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 3.5em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            letter-spacing: -2px;
+            transition: all 0.3s ease;
+            animation: valuePulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes valuePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .stat-card:hover .value {
+            animation: valuePulse 1s ease-in-out infinite, gradientText 2s ease infinite;
+        }
+        
+        /* Dashboard panels */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 35px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 35px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            transition: all 0.4s ease;
+            animation: fadeInUp 1s ease-out, panelGlow 8s ease-in-out infinite;
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        @keyframes panelGlow {
+            0%, 100% { box-shadow: var(--card-shadow); }
+            50% { box-shadow: 0 30px 80px rgba(99, 102, 241, 0.2); }
+        }
+        
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(139, 92, 246, 0.03) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        
+        .panel:hover::before {
+            opacity: 1;
+            animation: panelShimmer 2s ease infinite;
+        }
+        
+        @keyframes panelShimmer {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        .panel:hover {
+            box-shadow: var(--card-hover);
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.98);
+        }
+        
+        .panel h2 {
+            color: var(--primary);
+            margin-bottom: 30px;
+            font-size: 2em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .panel h2::before {
+            content: '';
+            width: 4px;
+            height: 35px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+            animation: barPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes barPulse {
+            0%, 100% { 
+                transform: scaleY(1);
+                opacity: 1;
+            }
+            50% { 
+                transform: scaleY(1.2);
+                opacity: 0.8;
+            }
+        }
+        
+        /* List items with better design */
+        .list-item {
+            padding: 20px 25px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 15px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.5);
+            position: relative;
+            z-index: 1;
+            animation: listItemSlide 0.5s ease-out backwards;
+        }
+        
+        @keyframes listItemSlide {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .list-item:nth-child(1) { animation-delay: 0.1s; }
+        .list-item:nth-child(2) { animation-delay: 0.2s; }
+        .list-item:nth-child(3) { animation-delay: 0.3s; }
+        .list-item:nth-child(4) { animation-delay: 0.4s; }
+        .list-item:nth-child(5) { animation-delay: 0.5s; }
+        
+        .list-item:hover {
+            background: rgba(99, 102, 241, 0.08);
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        /* Badges with better design */
+        .badge {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.75em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            animation: badgeBounce 0.6s ease-out backwards;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        @keyframes badgeBounce {
+            0% {
+                opacity: 0;
+                transform: scale(0) rotate(-180deg);
+            }
+            50% {
+                transform: scale(1.2) rotate(10deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+            }
+        }
+        
+        .badge:hover {
+            transform: scale(1.15) rotate(5deg);
+            animation: badgeWiggle 0.5s ease infinite;
+        }
+        
+        @keyframes badgeWiggle {
+            0%, 100% { transform: scale(1.15) rotate(5deg); }
+            25% { transform: scale(1.15) rotate(-5deg); }
+            50% { transform: scale(1.15) rotate(5deg); }
+            75% { transform: scale(1.15) rotate(-5deg); }
+        }
+        
+        .badge.positive {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .badge.neutral {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+        }
+        
+        .badge.negative {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+        }
+        
+        /* Refresh button with better design */
+        .refresh-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            background-size: 200% 200%;
+            color: white;
+            border: none;
+            padding: 18px 45px;
+            border-radius: 35px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-top: 25px;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+            animation: buttonGradient 3s ease infinite;
+        }
+        
+        @keyframes buttonGradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .refresh-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .refresh-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(99, 102, 241, 0.5);
+            animation: buttonGradient 1s ease infinite, buttonBounce 0.6s ease;
+        }
+        
+        @keyframes buttonBounce {
+            0%, 100% { transform: translateY(-4px) scale(1.05); }
+            50% { transform: translateY(-6px) scale(1.08); }
+        }
+        
+        .refresh-btn:active {
+            transform: translateY(-2px) scale(1.02);
+        }
+        
+        .refresh-btn span {
+            position: relative;
+            z-index: 1;
+        }
+        
+        #refresh-icon {
+            animation: iconSpin 2s linear infinite;
+        }
+        
+        @keyframes iconSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .refresh-btn:hover #refresh-icon {
+            animation: iconSpin 0.5s linear infinite;
+        }
+        
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: var(--text-secondary);
+            font-style: italic;
+            font-size: 1.1em;
+        }
+        
+        .chart-container {
+            min-height: 200px;
+        }
+        
+        .value-large {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        /* Language tags */
+        .language-tag {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9em;
+            color: var(--primary);
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            box-shadow: 0 2px 10px rgba(99, 102, 241, 0.15);
+            transition: all 0.3s ease;
+            animation: tagPulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes tagPulse {
+            0%, 100% { 
+                box-shadow: 0 2px 10px rgba(99, 102, 241, 0.15);
+            }
+            50% { 
+                box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
+            }
+        }
+        
+        .language-tag:hover {
+            transform: scale(1.1);
+            animation: tagSpin 0.5s ease;
+        }
+        
+        @keyframes tagSpin {
+            0% { transform: scale(1.1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+            100% { transform: scale(1.1) rotate(360deg); }
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1em;
+            font-weight: 500;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .footer a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+        
+        .footer a:hover {
+            color: white;
+            transform: translateY(-2px);
+            text-shadow: 0 4px 15px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Loading spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+        
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); box-shadow: 0 30px 80px rgba(99, 102, 241, 0.3); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2.5em;
+            }
+            
+            .stat-card .value {
+                font-size: 2.8em;
+            }
+            
+            .panel {
+                padding: 25px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Tooltip on hover */
+        .stat-card[title]:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            background: var(--text-primary);
+            color: white;
+            border-radius: 8px;
+            font-size: 0.8em;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 10px;
+            opacity: 0;
+            animation: tooltipFade 0.3s ease forwards;
+        }
+        
+        @keyframes tooltipFade {
+            to { opacity: 1; }
+        }
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Better focus states for accessibility */
+        button:focus,
+        .stat-card:focus {
+            outline: 3px solid var(--primary);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-robot"></i> PingHumans</h1>
+            <p>Real-time AI Analytics & Monitoring Dashboard</p>
+            <div class="status-container">
+                <span class="status" id="status-indicator"></span>
+                <span id="status-text" style="font-weight: 600; color: var(--text-primary);">Connecting...</span>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card" title="Total messages received">
+                <h3><i class="fas fa-envelope"></i> Total Messages</h3>
+                <div class="value" id="total-messages">0</div>
+            </div>
+            <div class="stat-card" title="Total AI responses sent">
+                <h3><i class="fas fa-comments"></i> Total Responses</h3>
+                <div class="value" id="total-responses">0</div>
+            </div>
+            <div class="stat-card" title="Unique users who messaged">
+                <h3><i class="fas fa-users"></i> Unique Users</h3>
+                <div class="value" id="unique-users">0</div>
+            </div>
+            <div class="stat-card" title="Active conversation threads">
+                <h3><i class="fas fa-comment-dots"></i> Active Conversations</h3>
+                <div class="value" id="active-conversations">0</div>
+            </div>
+        </div>
+        
+        <div class="dashboard">
+            <div class="panel">
+                <h2><i class="fas fa-chart-pie"></i> Sentiment Distribution</h2>
+                <div id="sentiment-chart" class="chart-container">
+                    <div id="sentiment-list"></div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2><i class="fas fa-globe"></i> Top Languages</h2>
+                <div id="languages-list"></div>
+            </div>
+        </div>
+        
+        <div class="dashboard">
+            <div class="panel">
+                <h2><i class="fas fa-bullseye"></i> Top Intents</h2>
+                <div id="intents-list"></div>
+            </div>
+            
+            <div class="panel">
+                <h2><i class="fas fa-bolt"></i> Recent Activity</h2>
+                <div id="activity-list">Loading...</div>
+            </div>
+        </div>
+        
+        <div style="text-align: center;">
+            <button class="refresh-btn" onclick="loadData()" aria-label="Refresh dashboard data">
+                <span id="refresh-icon"><i class="fas fa-sync-alt"></i></span>
+                <span>Refresh Data</span>
+            </button>
+        </div>
+        
+        <div class="footer">
+            <p>✨ Powered by OpenAI GPT-4o-mini • Real-time Kafka Integration • Long Context Awareness ✨</p>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.2);">
+                <p style="font-size: 0.9em; opacity: 0.9;">
+                    <strong>Contact:</strong> 
+                    <a href="mailto:your.email@example.com"><i class="fas fa-envelope"></i> Email</a> |
+                    <a href="https://linkedin.com/in/yourprofile" target="_blank"><i class="fab fa-linkedin"></i> LinkedIn</a> |
+                    <a href="https://github.com/yourusername" target="_blank"><i class="fab fa-github"></i> GitHub</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:${window.location.port || '5001'}/api`;
+        let refreshInterval;
+        
+        function updateStatus(online) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            if (online) {
+                indicator.className = 'status online';
+                text.textContent = 'Connected';
+                text.style.color = 'var(--success)';
+            } else {
+                indicator.className = 'status offline';
+                text.textContent = 'Disconnected';
+                text.style.color = 'var(--danger)';
+            }
+        }
+        
+        function animateValue(element, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const current = Math.floor(progress * (end - start) + start);
+                element.textContent = current;
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+        
+        async function loadData() {
+            const refreshIcon = document.getElementById('refresh-icon');
+            refreshIcon.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            try {
+                // Load stats
+                const statsRes = await fetch(`${API_URL}/stats`);
+                const stats = await statsRes.json();
+                
+                // Animate value changes with bounce effect
+                const totalMessages = parseInt(document.getElementById('total-messages').textContent) || 0;
+                const totalResponses = parseInt(document.getElementById('total-responses').textContent) || 0;
+                const uniqueUsers = parseInt(document.getElementById('unique-users').textContent) || 0;
+                const activeConversations = parseInt(document.getElementById('active-conversations').textContent) || 0;
+                
+                if (stats.total_messages !== totalMessages) {
+                    animateValue(document.getElementById('total-messages'), totalMessages, stats.total_messages || 0, 600);
+                    document.getElementById('total-messages').parentElement.style.animation = 'successPulse 0.5s ease';
+                } else {
+                    document.getElementById('total-messages').textContent = stats.total_messages || 0;
+                }
+                
+                if (stats.total_responses !== totalResponses) {
+                    animateValue(document.getElementById('total-responses'), totalResponses, stats.total_responses || 0, 600);
+                    document.getElementById('total-responses').parentElement.style.animation = 'successPulse 0.5s ease';
+                } else {
+                    document.getElementById('total-responses').textContent = stats.total_responses || 0;
+                }
+                
+                if (stats.unique_users !== uniqueUsers) {
+                    animateValue(document.getElementById('unique-users'), uniqueUsers, stats.unique_users || 0, 600);
+                    document.getElementById('unique-users').parentElement.style.animation = 'successPulse 0.5s ease';
+                } else {
+                    document.getElementById('unique-users').textContent = stats.unique_users || 0;
+                }
+                
+                if (stats.active_conversations !== activeConversations) {
+                    animateValue(document.getElementById('active-conversations'), activeConversations, stats.active_conversations || 0, 600);
+                    document.getElementById('active-conversations').parentElement.style.animation = 'successPulse 0.5s ease';
+                } else {
+                    document.getElementById('active-conversations').textContent = stats.active_conversations || 0;
+                }
+                
+                // Load sentiment
+                const sentimentList = document.getElementById('sentiment-list');
+                sentimentList.innerHTML = '';
+                const sentiments = Object.entries(stats.sentiment_distribution || {});
+                if (sentiments.length === 0) {
+                    sentimentList.innerHTML = '<div class="empty-state">No sentiment data yet</div>';
+                } else {
+                    sentiments.forEach(([sentiment, count]) => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        const icon = sentiment === 'positive' ? '😊' : sentiment === 'negative' ? '😞' : '😐';
+                        const fullName = sentiment === 'positive' ? 'Positive' : sentiment === 'negative' ? 'Negative' : 'Neutral';
+                        item.innerHTML = `
+                            <span><span class="badge ${sentiment}">${icon} ${fullName}</span></span>
+                            <span class="value-large">${count}</span>
+                        `;
+                        sentimentList.appendChild(item);
+                    });
+                }
+                
+                // Load languages
+                const languagesList = document.getElementById('languages-list');
+                languagesList.innerHTML = '';
+                const languages = Object.entries(stats.top_languages || {});
+                if (languages.length === 0) {
+                    languagesList.innerHTML = '<div class="empty-state">No language data yet</div>';
+                } else {
+                    languages.forEach(([lang, count]) => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        item.innerHTML = `
+                            <span><span class="language-tag">🌍 ${lang.toUpperCase()}</span></span>
+                            <span class="value-large">${count}</span>
+                        `;
+                        languagesList.appendChild(item);
+                    });
+                }
+                
+                // Load intents
+                const intentsList = document.getElementById('intents-list');
+                intentsList.innerHTML = '';
+                const intents = Object.entries(stats.top_intents || {});
+                if (intents.length === 0) {
+                    intentsList.innerHTML = '<div class="empty-state">No intent data yet</div>';
+                } else {
+                    intents.forEach(([intent, count]) => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        const intentIcons = {
+                            'question': '❓',
+                            'greeting': '👋',
+                            'complaint': '😠',
+                            'request': '🙏',
+                            'thanks': '🙏',
+                            'general': '💬'
+                        };
+                        const intentNames = {
+                            'question': 'Question',
+                            'greeting': 'Greeting',
+                            'complaint': 'Complaint',
+                            'request': 'Request',
+                            'thanks': 'Thanks',
+                            'general': 'General'
+                        };
+                        const icon = intentIcons[intent] || '💭';
+                        const fullName = intentNames[intent] || intent.charAt(0).toUpperCase() + intent.slice(1);
+                        item.innerHTML = `
+                            <span style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">${icon} ${fullName}</span>
+                            <span class="value-large">${count}</span>
+                        `;
+                        intentsList.appendChild(item);
+                    });
+                }
+                
+                // Load conversations for activity
+                const convRes = await fetch(`${API_URL}/conversations`);
+                const conversations = await convRes.json();
+                
+                const activityList = document.getElementById('activity-list');
+                activityList.innerHTML = '';
+                const convArray = Object.entries(conversations).slice(0, 5);
+                if (convArray.length === 0) {
+                    activityList.innerHTML = '<div class="empty-state">No conversations yet</div>';
+                } else {
+                    convArray.forEach(([chatId, data]) => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        item.innerHTML = `
+                            <span style="font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-comment"></i> <strong>Chat ${chatId}</strong></span>
+                            <span style="display: flex; gap: 15px; align-items: center;">
+                                <span class="language-tag">${data.language.toUpperCase()}</span>
+                                <span style="color: var(--text-secondary); font-weight: 600;"><i class="fas fa-envelope"></i> ${data.message_count} Messages</span>
+                            </span>
+                        `;
+                        activityList.appendChild(item);
+                    });
+                }
+                
+                updateStatus(true);
+                refreshIcon.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                
+                // Add success animation when data loads
+                document.querySelectorAll('.stat-card').forEach((card, index) => {
+                    setTimeout(() => {
+                        card.style.animation = 'fadeInUp 0.8s ease-out, float 6s ease-in-out infinite, successPulse 0.5s ease';
+                        setTimeout(() => {
+                            card.style.animation = 'fadeInUp 0.8s ease-out, float 6s ease-in-out infinite';
+                        }, 500);
+                    }, index * 100);
+                });
+            } catch (error) {
+                console.error('Error loading data:', error);
+                updateStatus(false);
+                refreshIcon.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            }
+        }
+        
+        // Load data on page load
+        loadData();
+        
+        // Auto-refresh every 5 seconds
+        refreshInterval = setInterval(loadData, 5000);
+        
+        // Stop auto-refresh when page is hidden
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(refreshInterval);
+            } else {
+                refreshInterval = setInterval(loadData, 5000);
+                loadData();
+            }
+        });
+    </script>
+</body>
+</html>
